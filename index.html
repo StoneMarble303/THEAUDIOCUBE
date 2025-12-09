@@ -3,28 +3,31 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>The CUBE — prototyp (stable snap + stronger magnet + pad highlight)</title>
+<title>The CUBE — prototyp (drag overlay fix)</title>
 <style>
-  :root{
-    --bg:#e7e7e7;
-    --panel:#ffffff;
-    --muted:#707070;
-    --accent:#1f7aef;
-    --pad-highlight: rgba(30,140,220,0.06);
-  }
+  :root{ --bg:#e7e7e7; --panel:#fff; --muted:#707070; --accent:#1f7aef; --pad-highlight: rgba(30,140,220,0.06); }
   html,body{height:100%;margin:0;background:var(--bg);color:#222;font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial;}
   .page{ max-width:1200px; margin:22px auto; padding:12px; box-sizing:border-box;}
   .top-title{ color:#9a9a9a; margin-bottom:10px; font-size:14px; }
 
-  .layout { display:grid; grid-template-columns:720px 1fr; gap:26px; align-items:start; }
+  .layout { display:grid; grid-template-columns:720px 1fr; gap:26px; align-items:start; position:relative; }
   .player-wrap{ width:720px; margin:0; }
   .tokens-col{ min-height:720px; padding-top:12px; display:flex; flex-direction:column; gap:12px; align-items:flex-start; }
 
+  /* tokensGrid is only a visual helper now */
   .tokens-grid { width:320px; height:720px; position:relative; border-radius:6px; background:transparent; }
 
-  .cassette { position:absolute; width:193px; height:193px; cursor:grab; user-select:none; touch-action:none; transition: transform .12s, box-shadow .12s, outline .12s; background:transparent; z-index:40; }
+  /* drag layer covers the page so cassettes can move freely */
+  #dragLayer {
+    position:fixed;
+    left:0; top:0; width:100%; height:100%;
+    pointer-events:auto;
+    z-index:9999; /* on top so we can drag over everything */
+  }
+
+  .cassette { position:absolute; width:193px; height:193px; cursor:grab; user-select:none; touch-action:none; transition: transform .12s, box-shadow .12s, outline .12s; background:transparent; }
   .cassette.dragging{ cursor:grabbing; transform:scale(1.02) !important; box-shadow:0 30px 50px rgba(0,0,0,0.18) !important; }
-  .cassette svg rect { display:none !important; } 
+  .cassette svg rect { display:none !important; } /* remove large white rects in embedded svg */
   .cassette.playing { outline:4px solid rgba(40,200,220,0.95); box-shadow:0 30px 60px rgba(30,160,220,0.08); }
   .cassette.queued  { outline:2px dashed rgba(200,200,200,0.12); box-shadow:0 18px 30px rgba(0,0,0,0.06); }
 
@@ -34,25 +37,19 @@
   svg#playerSVG .svg-btn { transform-box: fill-box; transform-origin: center center; transition: transform 120ms ease; will-change: transform; }
   svg#playerSVG .svg-btn * { pointer-events:none; }
 
-  /* pad highlight (applied by JS when cassette is near) */
-  #playerSVG .pad-highlight-rect {
-    pointer-events: none;
-    fill: var(--pad-highlight);
-    stroke: none;
-  }
+  /* pad highlight (applied by JS) */
+  #playerSVG .pad-highlight-rect { pointer-events:none; fill: var(--pad-highlight); stroke: none; }
 
-  @media (max-width:1000px){
-    .layout{ grid-template-columns: 1fr; }
-    .player-wrap{ width:100%; }
-  }
+  @media (max-width:1000px){ .layout{ grid-template-columns: 1fr; } .player-wrap{ width:100%; } }
 </style>
 </head>
 <body>
   <div class="page">
     <div class="top-title">The cube digital prototype 1</div>
 
-    <div class="layout">
+    <div class="layout" id="layout">
       <div class="player-wrap">
+        <!-- player SVG (same as before) -->
         <svg id="playerSVG" tabindex="-1" xmlns="http://www.w3.org/2000/svg" width="552" height="673" viewBox="0 0 552 673" preserveAspectRatio="xMidYMid meet">
   <defs>
     <filter id="Rectangle_3"><feOffset input="SourceAlpha"/><feGaussianBlur stdDeviation="1.5" result="blur"/><feFlood result="color"/><feComposite operator="out" in="SourceGraphic" in2="blur"/><feComposite operator="in" in="color"/><feComposite operator="in" in2="SourceGraphic"/></filter>
@@ -71,11 +68,9 @@
         </g>
       </g>
       <g id="Ellipse_21" transform="translate(321 204)" fill="none" stroke="#e5e5e5" stroke-width="1">
-        <!-- visible circle used to detect pad area -->
         <circle id="pad_main_circle" cx="246.5" cy="246.5" r="246.5"/>
         <circle cx="246.5" cy="246.5" r="246" fill="none"/>
       </g>
-      <!-- a transparent rect that we will toggle to show highlight -->
       <rect id="pad_highlight" class="pad-highlight-rect" x="299" y="183" width="535" height="535" rx="8" style="opacity:0;"></rect>
     </g>
     <text id="Reader_pad-2" transform="translate(26 33)" fill="#707070" font-size="15" font-family="HelveticaNeue, Helvetica Neue"><tspan x="0" y="0">Reader pad</tspan></text>
@@ -87,15 +82,18 @@
         <circle cx="24" cy="24" r="10.5" fill="none" stroke="#111" stroke-width="1.1"/>
         <circle id="svg_power_light" cx="52" cy="8" r="4" fill="#dff6df" opacity="1" />
       </g>
+
       <g id="svgBtn_shuffle" class="svg-btn" transform="translate(320,22)" cursor="pointer" role="button" aria-label="Shuffle">
         <circle cx="14" cy="14" r="14" fill="#fff" stroke="#a8a8a8" stroke-width="1.2" />
         <path d="M6 12 L14 12 C18 12 20 12 22 13.5" stroke="#111" stroke-width="1.1" fill="none" stroke-linecap="round"/>
         <path d="M22 9 L26 5 L22 1" stroke="#111" stroke-width="1.1" fill="none" stroke-linecap="round"/>
       </g>
+
       <g id="svgBtn_volDown" class="svg-btn" transform="translate(380,22)" cursor="pointer" role="button" aria-label="Volume down">
         <circle cx="14" cy="14" r="14" fill="#fff" stroke="#a8a8a8" stroke-width="1.2" />
         <path d="M6 14h16" stroke="#111" stroke-width="1.4" stroke-linecap="round"/>
       </g>
+
       <g id="svgBtn_volUp" class="svg-btn" transform="translate(440,22)" cursor="pointer" role="button" aria-label="Volume up">
         <circle cx="14" cy="14" r="14" fill="#fff" stroke="#a8a8a8" stroke-width="1.2" />
         <path d="M14 6v16" stroke="#111" stroke-width="1.4" stroke-linecap="round"/>
@@ -110,13 +108,17 @@
 
       <div class="tokens-col">
         <div class="hint">Cassette tokens — dra till plattan</div>
-        <div id="tokensGrid" class="tokens-grid" aria-hidden="false"></div>
+        <!-- visual placeholder for tokens area (NOT where draggable items live) -->
+        <div id="tokensGrid" class="tokens-grid" aria-hidden="false" style="border:0px solid rgba(0,0,0,0.03);"></div>
       </div>
     </div>
   </div>
 
+  <!-- drag layer: full-page overlay where cassettes will be appended -->
+  <div id="dragLayer" aria-hidden="false"></div>
+
 <script>
-/* AUDIO files */
+/* AUDIO: same working URLs */
 const AUDIO_FILES = [
   'https://raw.githubusercontent.com/StoneMarble303/THEAUDIOCUBE/main/audio/Armaku_ElektroPunk_Full_Drum_Loop_120_08.wav',
   'https://raw.githubusercontent.com/StoneMarble303/THEAUDIOCUBE/main/audio/Armaku_ElektroPunk_Bass_Loop_11_130_Eb_Min.wav',
@@ -145,7 +147,7 @@ async function initAudioSources(){
 }
 initAudioSources();
 
-/* Cassette SVG template */
+/* cassette SVG */
 const CASSETTE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="193" height="193" viewBox="0 0 193 193">
   <g id="Group_13" transform="translate(-974 -212)">
     <g id="Group_12">
@@ -165,27 +167,34 @@ const CASSETTE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="193" height
   </g>
 </svg>`;
 
-/* Create cassettes */
+/* create cassettes but append to dragLayer so they can move across columns */
 const tokensGrid = document.getElementById('tokensGrid');
+const dragLayer = document.getElementById('dragLayer');
 let cassetteState = {}, playQueue = [], currentPlayingId = null;
 const positions = [{left:10,top:10},{left:10,top:230},{left:10,top:450}];
+
 for (let i=0;i<3;i++) createCassette('c'+(i+1), i, positions[i]);
 
 function createCassette(id, trackIndex, pos){
+  // create wrapper in dragLayer
   const wrapper = document.createElement('div');
   wrapper.className = 'cassette';
   wrapper.dataset.cid = id;
   wrapper.dataset.track = trackIndex;
-  wrapper.style.left = pos.left + 'px';
-  wrapper.style.top = pos.top + 'px';
+  // compute initial page coords based on tokensGrid location + pos
+  const gridRect = tokensGrid.getBoundingClientRect();
+  wrapper.style.left = (gridRect.left + pos.left) + 'px';
+  wrapper.style.top = (gridRect.top + pos.top) + 'px';
+  wrapper.style.position = 'absolute';
   wrapper.innerHTML = CASSETTE_SVG;
+  // remove any big rects inside svg that create white cards
   try { wrapper.querySelectorAll('rect').forEach(r=>r.remove()); } catch(e){}
-  tokensGrid.appendChild(wrapper);
+  dragLayer.appendChild(wrapper);
   cassetteState[id] = { trackIndex, el: wrapper, onPad:false, cached:false, playing:false, queued:false };
   makeDraggable(wrapper);
 }
 
-/* Robust pad rect */
+/* robust pad rect */
 const playerSVG = document.getElementById('playerSVG');
 function getPadRectScreen(){
   try {
@@ -207,7 +216,7 @@ function getPadRectScreen(){
   }
 }
 
-/* makeDraggable with stronger magnet & pad highlight */
+/* draggable: coordinates now in page space (dragLayer) */
 function makeDraggable(elem){
   let dragging=false, pid=null, offset={x:0,y:0};
   const id = elem.dataset.cid;
@@ -229,16 +238,13 @@ function makeDraggable(elem){
     const pad = getPadRectScreen();
     const dx = e.clientX - pad.centerX, dy = e.clientY - pad.centerY;
     const dist = Math.sqrt(dx*dx + dy*dy);
-
-    // STRONGER magnet: larger radius + gentle pull
-    const magnetRadius = Math.max(pad.width, pad.height) * 1.15; // bigger tolerance
+    const magnetRadius = Math.max(pad.width, pad.height) * 1.15;
     if (dist < magnetRadius){
       const pull = 0.16 + (1 - dist/magnetRadius)*0.44;
       nx = nx + (pad.centerX - e.clientX)*pull;
       ny = ny + (pad.centerY - e.clientY)*pull;
       elem.style.transform = 'scale(1.02)';
       elem.style.boxShadow = '0 18px 32px rgba(0,0,0,0.20)';
-      // pad highlight on
       try { document.getElementById('pad_highlight').style.opacity = 1; } catch(e){}
       console.log('PAD HOVER:', id, 'dist', Math.round(dist));
     } else {
@@ -246,9 +252,9 @@ function makeDraggable(elem){
       elem.style.boxShadow = '0 12px 24px rgba(0,0,0,0.12)';
       try { document.getElementById('pad_highlight').style.opacity = 0; } catch(e){}
     }
-    const gridRect = tokensGrid.getBoundingClientRect();
-    elem.style.left = Math.max(-10, nx - gridRect.left) + 'px';
-    elem.style.top = Math.max(-10, ny - gridRect.top) + 'px';
+    // position in page coords
+    elem.style.left = nx + 'px';
+    elem.style.top = ny + 'px';
   }
 
   function up(e){
@@ -279,14 +285,13 @@ function makeDraggable(elem){
       } catch(err){}
     }
 
-    // clear highlight
     try { document.getElementById('pad_highlight').style.opacity = 0; } catch(e){}
 
     if (inside){
       const snapX = pad.centerX - rect.width/2;
       const snapY = pad.centerY - rect.height/2;
-      elem.style.left = (snapX - tokensGrid.getBoundingClientRect().left) + 'px';
-      elem.style.top = (snapY - tokensGrid.getBoundingClientRect().top) + 'px';
+      elem.style.left = snapX + 'px';
+      elem.style.top = snapY + 'px';
       cassetteState[id].onPad = true;
       console.log('SNAP:', id, 'to pad center');
       if (!cassetteState[id].cached){
@@ -308,7 +313,7 @@ function makeDraggable(elem){
   window.addEventListener('pointerup', up);
 }
 
-/* Playback + queue */
+/* Playback + queue (same as before) */
 function handleDrop(cid){
   const st = cassetteState[cid];
   if (!st) return;
@@ -346,7 +351,7 @@ function startNextInQueue(){
 function removeFromQueue(cid){ playQueue = playQueue.filter(x=>x!==cid); if (cassetteState[cid]) cassetteState[cid].queued=false; updateAllUI(); }
 function updateAllUI(){ Object.keys(cassetteState).forEach(k=>{ const s = cassetteState[k]; s.el.classList.toggle('playing', !!s.playing); s.el.classList.toggle('queued', !!s.queued); }); }
 
-/* SVG controls */
+/* Buttons wiring */
 const svgRoot = document.getElementById('playerSVG');
 const svgBtn_power = svgRoot.getElementById('svgBtn_power');
 const svgBtn_shuffle = svgRoot.getElementById('svgBtn_shuffle');
@@ -371,7 +376,9 @@ if (svgBtn_power){
     if (!window._powerOn){
       Object.keys(cassetteState).forEach(k=>{ stopCassette(k,false); cassetteState[k].queued=false; cassetteState[k].onPad=false; });
       playQueue=[]; currentPlayingId=null;
-      Object.keys(cassetteState).forEach((k,i)=> { const el = cassetteState[k].el; el.style.left = positions[i].left + 'px'; el.style.top = positions[i].top + 'px'; });
+      // reset positions (put them back to tokensGrid visual start)
+      const gridRect = tokensGrid.getBoundingClientRect();
+      Object.keys(cassetteState).forEach((k,i)=> { const el = cassetteState[k].el; el.style.left = (gridRect.left + positions[i].left) + 'px'; el.style.top = (gridRect.top + positions[i].top) + 'px'; });
       updateAllUI();
     } else startNextInQueue();
   });
@@ -384,7 +391,15 @@ if (svgBtn_volUp){ svgBtn_volUp.addEventListener('click', (e)=>{ e.stopPropagati
 
 if (svg_power_light) svg_power_light.setAttribute('fill', '#dff6df');
 updateAllUI();
-console.log('Updated page: stronger magnet, pad highlight, stable button scale.');
+
+console.log('Loaded page with dragLayer overlay.');
+
+/* QUICK DEBUG HELP:
+ After reload, in Console run:
+ console.log('pad rect:', !!document.getElementById('pad_main_circle'), document.getElementById('pad_main_circle') && document.getElementById('pad_main_circle').getBoundingClientRect());
+ console.log('tokensGrid rect:', document.getElementById('tokensGrid').getBoundingClientRect());
+ document.querySelectorAll('.cassette').forEach((c,i)=>console.log(i, c.dataset.cid, c.style.left, c.style.top, c.getBoundingClientRect()));
+*/
 </script>
 </body>
 </html>
