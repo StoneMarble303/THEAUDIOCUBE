@@ -3,115 +3,148 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>The CUBE — Player Prototype</title>
+<title>The CUBE — prototyp (uppdaterad)</title>
 <style>
-  :root{ --bg:#000; --muted:#707070; --accent:#1f7aef; }
+  :root{
+    --bg:#0b0f12;
+    --panel:#f7f7f7;
+    --muted:#707070;
+    --accent:#1f7aef;
+  }
   html,body{height:100%;margin:0;background:var(--bg);color:#fff;font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial;}
   .stage{ max-width:1320px; margin:28px auto; display:grid; grid-template-columns: 740px 1fr; gap:60px; align-items:start; padding:16px; box-sizing:border-box;}
   .player-wrap{ position:relative; }
-  .player{ width:740px; background:linear-gradient(180deg,#f7f7f7,#ffffff); border-radius:14px; padding:18px; box-sizing:border-box; }
-  .reader-area{ width:700px; height:700px; margin:6px auto 12px auto; display:flex;align-items:center;justify-content:center; position:relative; }
+  .player{ width:740px; background:linear-gradient(180deg,var(--panel),#fff); border-radius:14px; padding:0; box-sizing:border-box; position:relative; overflow:visible; }
+  .reader-area{ width:700px; height:700px; margin:8px auto 8px auto; display:flex;align-items:center;justify-content:center; position:relative; }
   #playerSVG{ width:700px; height:700px; display:block; }
-  .controls-row { display:flex; align-items:center; justify-content:space-between; padding:12px 20px; background:transparent; margin-top:6px; }
-  .controls-left{ display:flex; align-items:center; gap:18px; }
-  .svg-button { cursor:pointer; transition: transform 120ms cubic-bezier(.2,.9,.3,1), filter 120ms; transform-origin:center center; }
+
+  /* Controls overlay */
+  .controls-overlay{
+    position:absolute;
+    left:50%;
+    transform:translateX(-50%);
+    bottom:18px;
+    z-index:999;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:18px;
+    pointer-events:auto;
+  }
+  .controls-row {
+    display:flex;
+    align-items:center;
+    gap:18px;
+    padding:8px 14px;
+    border-radius:12px;
+    background: rgba(0,0,0,0.45);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.6);
+    backdrop-filter: blur(6px);
+  }
+
+  .svg-button { cursor:pointer; transition: transform 120ms cubic-bezier(.2,.9,.3,1), filter 120ms, box-shadow 120ms; transform-origin:center center; display:flex; align-items:center; justify-content:center; }
   .svg-button:active { transform:scale(0.9); }
-  .svg-button.btn-active-outline { box-shadow:0 0 0 6px rgba(31,122,239,0.06); border-radius:999px; }
+  .svg-button .btn-bg { width:56px; height:56px; border-radius:12px; display:flex; align-items:center; justify-content:center; pointer-events:none; box-sizing:border-box; }
+  .svg-button[data-action="power"] .btn-bg { background: linear-gradient(180deg,#ffffff,#f1f1f1); border:1px solid rgba(0,0,0,0.06); width:62px; height:62px; border-radius:12px; }
+  .svg-button.btn-active { box-shadow:0 8px 30px rgba(31,122,239,0.16); }
+
+  .svg-button svg{ width:36px; height:36px; display:block; pointer-events:none; }
+
   .tokens-col{ display:flex; flex-direction:column; align-items:center; justify-content:flex-start; padding-top:80px; gap:36px; }
   .tokens-grid{ width:320px; height:420px; position:relative; }
-  .cassette{ position:absolute; width:220px; height:197px; cursor:grab; touch-action:none; user-select:none; transition: transform .12s, box-shadow .12s, outline .12s; z-index:80; }
-  .cassette.dragging{ cursor:grabbing; transform:scale(1.02); box-shadow:0 34px 80px rgba(0,0,0,0.7); }
+  /* Anpassat till kassettstorlek */
+  .cassette{ position:absolute; width:200px; height:199px; cursor:grab; touch-action:none; user-select:none; transition: transform .12s, box-shadow .12s, outline .12s; z-index:80; background:transparent; }
+  .cassette.dragging{ cursor:grabbing; transform:scale(1.02); }
   .queue-box{ margin-top:12px; background:rgba(255,255,255,0.02); padding:12px; border-radius:8px; color:#9fb6c7; font-size:13px; min-height:100px; white-space:pre-wrap; }
   .loading-badge{ position:fixed; left:24px; top:24px; background:rgba(0,0,0,0.6); color:#fff; padding:8px 10px; border-radius:8px; z-index:999; display:none; align-items:center; gap:8px; }
   .loader{ width:12px;height:12px;border-radius:50%; border:2px solid rgba(255,255,255,0.18); border-top-color:#fff; animation:spin .9s linear infinite; }
   @keyframes spin{ to{ transform:rotate(360deg);} }
+
+  /* remove any full-rect backgrounds inside cassette SVGs */
+  .cassette svg rect { display: none !important; }
+
+  /* ensure embedded on-button in playerSVG is clickable if present */
+  #playerSVG #on-button { pointer-events: auto; cursor: pointer; }
+  .on-light { transition: fill 180ms, transform 140ms; transform-origin:center center; }
+
   @media (max-width:1000px){ .stage{ grid-template-columns:1fr; } .player{ width:100%; } .reader-area{ width:92vw; height:92vw; } .tokens-grid{ transform:scale(.95);} }
 </style>
 </head>
 <body>
   <div style="padding-left:34px; padding-top:12px;">
-    <div style="color:#cfe7ff; font-weight:600; display:inline-block; padding:6px 8px; border-radius:4px;">The CUBE Music player digital prototype</div>
+    <div style="color:#cfe7ff; font-weight:600; display:inline-block; padding:6px 8px; border-radius:4px;">The CUBE — prototyp (ny)</div>
   </div>
 
   <div class="stage" id="stage">
-    <!-- LEFT: player -->
     <div class="player-wrap">
-      <div class="player">
+      <div class="player" id="playerCard">
         <div class="reader-area" id="readerArea">
-          <!-- MAIN SVG (player + reader pad) -->
-          <svg id="playerSVG" xmlns="http://www.w3.org/2000/svg" width="746" height="923" viewBox="0 0 746 923" preserveAspectRatio="xMidYMid meet">
+          <!-- PLAYER SVG (utan knappar) -->
+          <svg id="playerSVG" xmlns="http://www.w3.org/2000/svg" width="552" height="673" viewBox="0 0 552 673" preserveAspectRatio="xMidYMid meet">
   <defs>
     <filter id="Rectangle_3"><feOffset input="SourceAlpha"/><feGaussianBlur stdDeviation="1.5" result="blur"/><feFlood result="color"/><feComposite operator="out" in="SourceGraphic" in2="blur"/><feComposite operator="in" in="color"/><feComposite operator="in" in2="SourceGraphic"/></filter>
-    <clipPath id="clip-The_cube_digital_prototype_1"><rect width="746" height="923"/></clipPath>
+    <clipPath id="clip-The_cube_digital_prototype_1_1"><rect width="552" height="673"/></clipPath>
   </defs>
-  <g id="The_cube_digital_prototype_1" clip-path="url(#clip-The_cube_digital_prototype_1)">
-    <g id="The_cube_reader_pad" transform="translate(-103 -64)">
-      <g id="Rectangle_4" transform="translate(837 730.146) rotate(90)" fill="#fff" stroke="#707070" stroke-width="1">
-        <rect width="233.354" height="734" rx="31" stroke="none"/><rect x="0.5" y="0.5" width="232.354" height="733" rx="30.5" fill="none"/>
-      </g>
-      <g id="Rectangle_1" transform="translate(103 64)" fill="#fff" stroke="#707070" stroke-width="1">
-        <rect width="734" height="734" rx="12" stroke="none"/><rect x="0.5" y="0.5" width="733" height="733" rx="11.5" fill="none"/>
-      </g>
-      <g data-type="innerShadowGroup">
-        <rect id="Rectangle_3-2" width="717" height="717" rx="11" transform="translate(111 73)" fill="#f7f7f7" opacity="0.997"/>
-        <g transform="matrix(1, 0, 0, 1, 103, 64)" filter="url(#Rectangle_3)"><rect id="Rectangle_3-3" width="717" height="717" rx="11" transform="translate(8 9)" fill="#fff" opacity="0.997"/></g>
-      </g>
-      <g id="Ellipse_14" transform="translate(125 86)" fill="#f7f7f7" stroke="#fff" stroke-width="3"><circle cx="345.5" cy="345.5" r="345.5"/><circle cx="345.5" cy="345.5" r="344" fill="none"/></g>
-      <g id="Ellipse_15" transform="translate(159.5 857.5)" fill="#ebebeb" stroke="#d0d0d0" stroke-width="1"><circle cx="27.5" cy="27.5" r="27.5"/><circle cx="27.5" cy="27.5" r="27" fill="none"/></g>
-      <text id="Reader_pad" transform="translate(135 105)" fill="#707070" font-size="20" font-family="HelveticaNeue, Helvetica Neue"><tspan x="0" y="0">Reader pad</tspan></text>
-      <g id="on-button" transform="translate(166.143 864.037)"><path id="Path_1" d="M8.953,6.343a16.91,16.91,0,1,0,23.915,0" transform="translate(0 2.61)" fill="none" stroke="#b9b9b9" stroke-linecap="round" stroke-width="1"/><path id="Path_2" d="M12,12.455V4" transform="translate(8.91 0)" fill="none" stroke="#b9b9b9" stroke-linecap="round" stroke-width="1"/></g>
+  <g id="The_cube_digital_prototype_1_1" clip-path="url(#clip-The_cube_digital_prototype_1_1)">
+    <g id="Playyer_body" transform="translate(2 2)" fill="#fff" stroke="#a8a8a8" stroke-width="1">
+      <rect width="547" height="671" rx="12" stroke="none"/>
+      <rect x="0.5" y="0.5" width="546" height="670" rx="11.5" fill="none"/>
     </g>
+    <g id="REader_pad" transform="translate(-291 -175)">
+      <g data-type="innerShadowGroup">
+        <rect id="Rectangle_3-2" width="535" height="535" rx="8" transform="translate(299 183)" fill="#f7f7f7" opacity="0.997"/>
+        <g transform="matrix(1, 0, 0, 1, 291, 175)" filter="url(#Rectangle_3)">
+          <rect id="Rectangle_3-3" width="535" height="535" rx="8" transform="translate(8 8)" fill="#fff" opacity="0.997"/>
+        </g>
+      </g>
+      <g id="Ellipse_21" transform="translate(321 204)" fill="none" stroke="#e5e5e5" stroke-width="1">
+        <circle cx="246.5" cy="246.5" r="246.5"/><circle cx="246.5" cy="246.5" r="246" fill="none"/>
+      </g>
+    </g>
+    <text id="Reader_pad-2" transform="translate(26 33)" fill="#707070" font-size="15" font-family="HelveticaNeue, Helvetica Neue"><tspan x="0" y="0">Reader pad</tspan></text>
   </g>
 </svg>
-        </div>
 
-        <!-- Controls row (we place inline button-SVGs here) -->
-        <div class="controls-row" id="controlsRow">
-          <div class="controls-left">
-            <!-- On/Off (visuell från SVG du gav) -->
-            <div id="powerBtnSvg" class="svg-button" data-action="power" title="Power" style="width:54px;height:54px;">
-              <svg xmlns="http://www.w3.org/2000/svg" width="54" height="54" viewBox="0 0 120.431 547.58" style="width:54px;height:54px;">
-                <g transform="rotate(90 60 60)" fill="#fff" stroke="#707070" stroke-width="1">
-                  <rect width="120.431" height="547.58" rx="6" stroke="none"></rect>
-                  <rect x="0.5" y="0.5" width="119.431" height="546.58" rx="5.5" fill="none"></rect>
-                </g>
-              </svg>
-            </div>
+          <!-- CONTROLS OVERLAY -->
+          <div class="controls-overlay" id="controlsOverlay">
+            <div class="controls-row" role="toolbar" aria-label="controls">
+              <div id="powerBtnSvg" class="svg-button" data-action="power" title="Power" aria-pressed="false" style="display:flex; align-items:center; gap:8px;">
+                <div class="btn-bg" aria-hidden="true"></div>
+                <svg id="power_svg_inline" xmlns="http://www.w3.org/2000/svg" width="41.031" height="62.226" viewBox="0 0 41.031 62.226" aria-hidden="true">
+                  <g id="on-button-overlay" transform="translate(7.94 29.056)">
+                    <g transform="translate(-7.94 -7.861)" fill="none" stroke="#000" stroke-width="1">
+                      <circle cx="20.516" cy="20.516" r="20.516" stroke="none"/>
+                      <circle cx="20.516" cy="20.516" r="20.016" fill="none"/>
+                    </g>
+                    <path d="M6.66,6.343a9.083,9.083,0,1,0,12.845,0" transform="translate(-0.467 -0.15)" fill="none" stroke="#000" stroke-linecap="round" stroke-width="1"/>
+                    <path d="M12,8.541V4" transform="translate(0.615 -0.467)" fill="none" stroke="#000" stroke-linecap="round" stroke-width="1"/>
+                  </g>
+                  <circle id="On_light" class="on-light" cx="4" cy="4" r="4" transform="translate(16.64)" fill="#dcf8df"/>
+                </svg>
+              </div>
 
-            <!-- Shuffle -->
-            <div id="shuffleBtn" class="svg-button" data-action="shuffle" title="Shuffle" style="width:40px;height:40px;">
-              <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">
-                <g transform="translate(-514 -770)">
-                  <g transform="translate(514 770)" fill="#fff" stroke="#707070" stroke-width="1"><circle cx="20" cy="20" r="20"/><circle cx="20" cy="20" r="19.5" fill="none"/></g>
-                  <g transform="translate(526.718 783.202)"><path d="M3,7H4.328a6.849,6.849,0,0,1,3.058.34,2.984,2.984,0,0,1,.75.558,6.849,6.849,0,0,1,1.2,2.831h0a6.85,6.85,0,0,0,1.2,2.831,2.985,2.985,0,0,0,.75.558,6.85,6.85,0,0,0,3.058.34h2.074m0,0L14.19,12.222m2.238,2.238L14.19,16.7" transform="translate(-3 -4.498)" fill="none" stroke="#222" stroke-width="1"/><path d="M16.692,5.885,14.454,3.646l-.528.528,1.6,1.6H14.337c-.788,0-1.4,0-1.9.044a3.132,3.132,0,0,0-2.155.967l-.041.043c.095.186.178.374.253.563q.042.106.083.217a1.905,1.905,0,0,1,.239-.3,2.611,2.611,0,0,1,.656-.488A2.644,2.644,0,0,1,12.5,6.562c.462-.041,1.045-.041,1.855-.041h1.173l-1.6,1.6.528.528,2.238-2.238.264-.264ZM8.445,12.927c-.095-.186-.178-.374-.253-.563q-.042-.106-.083-.217a1.907,1.907,0,0,1-.239.3,2.613,2.613,0,0,1-.657.488,2.644,2.644,0,0,1-1.031.257c-.462.041-1.045.041-1.855.041H3v.746H4.346c.788,0,1.4,0,1.9-.044A3.373,3.373,0,0,0,7.559,13.6a3.356,3.356,0,0,0,.844-.628Z" transform="translate(-3 -3.646)" fill="#222" fill-rule="evenodd"/></g>
-                </g>
-              </svg>
-            </div>
+              <div id="shuffleBtn" class="svg-button" data-action="shuffle" title="Shuffle">
+                <div class="btn-bg" style="background:transparent"></div>
+                <svg width="28" height="28" viewBox="0 0 40 40"><g transform="translate(-514 -770)"><g transform="translate(514 770)" fill="#fff" stroke="#707070" stroke-width="1"><circle cx="20" cy="20" r="20"/><circle cx="20" cy="20" r="19.5" fill="none"/></g><g transform="translate(526.718 783.202)"><path d="M3,7H4.328a6.849,6.849,0,0,1,3.058.34,2.984,2.984,0,0,1,.75.558,6.849,6.849,0,0,1,1.2,2.831h0a6.85,6.85,0,0,0,1.2,2.831,2.985,2.985,0,0,0,.75.558,6.85,6.85,0,0,0,3.058.34h2.074m0,0L14.19,12.222m2.238,2.238L14.19,16.7" transform="translate(-3 -4.498)" fill="none" stroke="#222" stroke-width="1"/><path d="M16.692,5.885,14.454,3.646l-.528.528,1.6,1.6H14.337c-.788,0-1.4,0-1.9.044a3.132,3.132,0,0,0-2.155.967l-.041.043c.095.186.178.374.253.563q.042.106.083.217a1.905,1.905,0,0,1,.239-.3,2.611,2.611,0,0,1,.656-.488A2.644,2.644,0,0,1,12.5,6.562c.462-.041,1.045-.041,1.855-.041h1.173l-1.6,1.6.528.528,2.238-2.238.264-.264ZM8.445,12.927c-.095-.186-.178-.374-.253-.563q-.042-.106-.083-.217a1.907,1.907,0,0,1-.239.3,2.613,2.613,0,0,1-.657.488,2.644,2.644,0,0,1-1.031.257c-.462.041-1.045.041-1.855.041H3v.746H4.346c.788,0,1.4,0,1.9-.044A3.373,3.373,0,0,0,7.559,13.6a3.356,3.356,0,0,0,.844-.628Z" transform="translate(-3 -3.646)" fill="#222" fill-rule="evenodd"/></g></g></svg>
+              </div>
 
-            <!-- Vol - -->
-            <div id="volDownBtn" class="svg-button" data-action="vol-down" title="Volume down" style="width:40px;height:40px;">
-              <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">
-                <g transform="translate(-627 -770)"><g transform="translate(627 770)" fill="#fff" stroke="#707070" stroke-width="1"><circle cx="20" cy="20" r="20"/><circle cx="20" cy="20" r="19.5" fill="none"/></g><path d="M685.981,884.947h14.384" transform="translate(-45.981 -94.947)" fill="none" stroke="#000" stroke-width="1"/></g>
-              </svg>
-            </div>
+              <div id="volDownBtn" class="svg-button" data-action="vol-down" title="Vol-">
+                <div class="btn-bg" style="background:transparent"></div>
+                <svg width="28" height="28" viewBox="0 0 40 40"><g transform="translate(-627 -770)"><g transform="translate(627 770)" fill="#fff" stroke="#707070" stroke-width="1"><circle cx="20" cy="20" r="20"/><circle cx="20" cy="20" r="19.5" fill="none"/></g><path d="M685.981,884.947h14.384" transform="translate(-45.981 -94.947)" fill="none" stroke="#000" stroke-width="1"/></g></svg>
+              </div>
 
-            <!-- Vol + -->
-            <div id="volUpBtn" class="svg-button" data-action="vol-up" title="Volume up" style="width:40px;height:40px;">
-              <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">
-                <g transform="translate(-693 -770)"><g transform="translate(693 770)" fill="#fff" stroke="#707070" stroke-width="1"><circle cx="20" cy="20" r="20"/><circle cx="20" cy="20" r="19.5" fill="none"/></g><g><path d="M686.981,884.947h13.384" transform="translate(19.007 -94.947)" fill="none" stroke="#000" stroke-width="1"/><path d="M0,0H13.384" transform="translate(712.68 783.308) rotate(90)" fill="none" stroke="#000" stroke-width="1"/></g></g>
-              </svg>
+              <div id="volUpBtn" class="svg-button" data-action="vol-up" title="Vol+">
+                <div class="btn-bg" style="background:transparent"></div>
+                <svg width="28" height="28" viewBox="0 0 40 40"><g transform="translate(-693 -770)"><g transform="translate(693 770)" fill="#fff" stroke="#707070" stroke-width="1"><circle cx="20" cy="20" r="20"/><circle cx="20" cy="20" r="19.5" fill="none"/></g><g><path d="M686.981,884.947h13.384" transform="translate(19.007 -94.947)" fill="none" stroke="#000" stroke-width="1"/><path d="M0,0H13.384" transform="translate(712.68 783.308) rotate(90)" fill="none" stroke="#000" stroke-width="1"/></g></g></svg>
+              </div>
             </div>
           </div>
 
-          <div style="display:flex;align-items:center;">
-            <div class="small" id="powerStateLabel" style="color:#9fb6c7">Power: Off</div>
-          </div>
         </div>
-
       </div>
     </div>
 
-    <!-- RIGHT: tokens column -->
+    <!-- Right column: tokens -->
     <div class="tokens-col">
       <div class="tokens-grid" id="tokensGrid"></div>
       <div style="margin-top:20px;width:320px;">
@@ -123,103 +156,52 @@
   <div class="loading-badge" id="loadingBadge"><div class="loader"></div><div>Loading…</div></div>
 
 <script>
-// ===== bättre debug-version av initAudioSources =====
+/* ============================
+   AUDIO FILES (fetch->blob)
+   ============================ */
 const AUDIO_FILES = [
   'https://raw.githubusercontent.com/StoneMarble303/THEAUDIOCUBE/main/audio/Armaku_ElektroPunk_Full_Drum_Loop_120_08.wav',
   'https://raw.githubusercontent.com/StoneMarble303/THEAUDIOCUBE/main/audio/Armaku_ElektroPunk_Bass_Loop_11_130_Eb_Min.wav',
-  'https://raw.githubusercontent.com/StoneMarble303/THEAUDIOCUBE/main/audio/Armaku_ElektroPunk_Full_Drum_Loop_120_06.wav',
-  // null om du inte har en 4:e ännu
+  'https://raw.githubusercontent.com/StoneMarble303/THEAUDIOCUBE/main/audio/Armaku_ElektroPunk_Full_Drum_Loop_120_06.wav'
 ];
-
-const audioEls = [null, null, null];
-
+const audioEls = AUDIO_FILES.map(()=>null);
 async function initAudioSources(){
-  for (let i = 0; i < AUDIO_FILES.length; i++){
+  for (let i=0;i<AUDIO_FILES.length;i++){
     const url = AUDIO_FILES[i];
-    const audio = new Audio();
-    audioEls[i] = audio;
-    if (!url) {
-      console.warn(`[audio init] track ${i+1} url missing (null).`);
-      continue;
-    }
-    console.log(`[audio init] checking track ${i+1}:`, url);
-
-    try {
-      // 1) Gör en HEAD för snabb insikt (vissa hosts blockerar HEAD -> fångas)
-      let headOk = false;
-      try {
-        const head = await fetch(url, { method: 'HEAD' });
-        console.log(`[audio init] HEAD ${i+1}:`, head.status, head.statusText);
-        headOk = head.ok;
-        if (headOk){
-          console.log(`[audio init] HEAD headers: content-type=${head.headers.get('content-type')}, content-length=${head.headers.get('content-length')}`);
-        }
-      } catch (headErr) {
-        console.warn(`[audio init] HEAD failed for track ${i+1} (will try GET):`, headErr);
-      }
-
-      // 2) Hämta filen (GET). Vi använder GET direkt — många hosts svarar bättre på GET.
-      const r = await fetch(url, { method: 'GET' });
-      console.log(`[audio init] GET ${i+1} status:`, r.status, r.statusText);
-      if (!r.ok) {
-        // visa mer info i console
-        console.warn(`[audio init] GET returned ${r.status} for track ${i+1}: ${url}`);
-        continue;
-      }
-
-      const contentType = r.headers.get('content-type');
-      const contentLen = r.headers.get('content-length');
-      console.log(`[audio init] GET headers for ${i+1}: content-type=${contentType}, content-length=${contentLen}`);
-
-      // 3) Kontrollera content-type: browsern behöver en spelbar typ (audio/wav, audio/mpeg, audio/mp3)
-      if (contentType && !contentType.startsWith('audio/')) {
-        console.warn(`[audio init] WARNING: content-type for track ${i+1} is '${contentType}', not an audio/* type. Browser may reject it.`);
-      }
-
-      // 4) Läs blob och skapa object URL (stabilast för playback)
+    const a = new Audio(); audioEls[i]=a;
+    if (!url) continue;
+    try{
+      const r = await fetch(url);
+      if (!r.ok){ console.warn('audio fetch failed', r.status, url); continue; }
       const blob = await r.blob();
-      console.log(`[audio init] blob size for track ${i+1}:`, blob.size, 'bytes');
-      const objectUrl = URL.createObjectURL(blob);
-      audio.src = objectUrl;
-      audio.preload = 'auto';
-      console.log(`[audio init] loaded track ${i+1} via blob URL`);
-    } catch (err) {
-      console.error(`[audio init] unexpected error loading track ${i+1}:`, err);
-      // fallback: försök ställa direkt src (kan blockas av CORS)
-      try {
-        audio.src = url;
-        audio.preload = 'auto';
-        console.warn(`[audio init] fallback: set audio.src directly for track ${i+1}`);
-      } catch(e2){
-        console.error(`[audio init] fallback also failed for track ${i+1}:`, e2);
-      }
+      a.src = URL.createObjectURL(blob);
+      a.preload='auto';
+      a.addEventListener('error', ev=> console.warn('audio error', i+1, ev));
+      a.addEventListener('canplay', ()=> console.log('canplay', i+1));
+      a.addEventListener('loadedmetadata', ()=> console.log('loadedmetadata', i+1, a.duration));
+    }catch(e){
+      console.warn('audio init error', e);
+      a.src = url; a.preload='auto';
     }
-
-    // Debug: visa fel på audioelementet
-    audio.addEventListener('error', (ev) => {
-      console.warn(`[audio init] AUDIO ERROR track ${i+1}`, ev, 'src=', audio.src);
-    });
-    // Optional: logga när audio blir playable
-    audio.addEventListener('canplay', ()=> console.log(`[audio init] canplay track ${i+1}`));
-    audio.addEventListener('loadedmetadata', ()=> console.log(`[audio init] loadedmetadata track ${i+1} duration:`, audio.duration));
   }
 }
-
 initAudioSources();
 
 /* ============================
    State & refs
    ============================ */
 const playerSVG = document.getElementById('playerSVG');
-const padRectEl = playerSVG.getElementById('Rectangle_1');
+const padRectEl = playerSVG.getElementById('Rectangle_3-2') || playerSVG.getElementById('Rectangle_3-3') || playerSVG.querySelector('rect[rx="8"]');
 const tokensGrid = document.getElementById('tokensGrid');
 const loadingBadge = document.getElementById('loadingBadge');
 const queueView = document.getElementById('queueView');
+
 const powerBtnSvg = document.getElementById('powerBtnSvg');
 const shuffleBtn = document.getElementById('shuffleBtn');
 const volDownBtn = document.getElementById('volDownBtn');
 const volUpBtn = document.getElementById('volUpBtn');
-const powerStateLabel = document.getElementById('powerStateLabel');
+
+const overlayOnLight = document.querySelector('#power_svg_inline #On_light');
 
 let cassetteState = {};
 let playQueue = [];
@@ -229,50 +211,63 @@ let audioUnlocked = false;
 let powerOn = false;
 let shuffleOn = false;
 
-/* Cassette SVG visual (you provided earlier) */
-const CASSETTE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="220" height="197" viewBox="0 0 220 197">
-  <defs><clipPath id="clip-cassette"><rect width="220" height="197"/></clipPath></defs>
-  <g clip-path="url(#clip-cassette)">
-    <g transform="translate(-935 -138)">
-      <g transform="translate(946 138)" fill="#ebebeb" stroke="#707070" stroke-width="1">
-        <circle cx="99.5" cy="99.5" r="99.5"/><circle cx="99.5" cy="99.5" r="99" fill="none"/>
-      </g>
-      <g transform="translate(949 141)" fill="#ebebeb" stroke="#707070" stroke-width="1">
+/* ============================
+   Cassette SVG (200x199)
+   ============================ */
+const CASSETTE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="199" viewBox="0 0 200 199">
+  <defs><clipPath id="clip-cassette"><rect width="200" height="199"/></clipPath></defs>
+  <g id="cassette" clip-path="url(#clip-cassette)">
+    <g id="Cassestte" transform="translate(-944 -138)">
+      <g id="Ellipse_23" transform="translate(948 142)" fill="#dbe1e8" stroke="#707070" stroke-width="1">
         <circle cx="96.5" cy="96.5" r="96.5"/><circle cx="96.5" cy="96.5" r="96" fill="none"/>
       </g>
-      <g transform="translate(1036 228)" fill="#ebebeb" stroke="#707070" stroke-width="1">
+      <g id="Ellipse_22" transform="translate(956 150)" fill="#dbe1e8" stroke="#707070" stroke-width="1" opacity="0.188">
+        <circle cx="88.5" cy="88.5" r="88.5"/><circle cx="88.5" cy="88.5" r="88" fill="none"/>
+      </g>
+      <g id="Ellipse_3" transform="translate(1035 229)" fill="#ebebeb" stroke="#707070" stroke-width="1">
         <circle cx="9.5" cy="9.5" r="9.5"/><circle cx="9.5" cy="9.5" r="9" fill="none"/>
       </g>
-      <g transform="translate(1095 167)" fill="#ebebeb" stroke="#707070" stroke-width="1">
-        <circle cx="5.5" cy="5.5" r="5.5"/><circle cx="5.5" cy="5.5" r="5" fill="none"/>
-      </g>
-      <text transform="translate(1017 289)" fill="#707070" font-size="20" font-family="HelveticaNeue, Helvetica Neue">Track</text>
+      <text id="Track_1" transform="translate(1015 286)" fill="#707070" font-size="20" font-family="HelveticaNeue, Helvetica Neue"><tspan x="0" y="0">Track 1</tspan></text>
     </g>
   </g>
 </svg>`;
 
-/* Create cassettes */
-const initialPositions = [
-  {left: 20, top: 8},
-  {left: 180, top: 8},
-  {left: 100, top: 210}
-];
+/* create cassettes and remove big rects if any */
+const initialPositions = [{left:10,top:6},{left:140,top:6},{left:60,top:210}];
 for (let i=0;i<3;i++) createCassette('cass'+(i+1), i, initialPositions[i]);
 
 function createCassette(id, trackIndex, pos){
   const wrapper = document.createElement('div');
-  wrapper.className = 'cassette';
+  wrapper.className='cassette';
   wrapper.dataset.cid = id;
   wrapper.dataset.track = trackIndex;
-  wrapper.style.left = pos.left + 'px';
-  wrapper.style.top  = pos.top + 'px';
+  wrapper.style.left = pos.left+'px';
+  wrapper.style.top = pos.top+'px';
   wrapper.innerHTML = CASSETTE_SVG;
+
+  // Remove or hide large background rects inside the SVG (designer might have left a white card)
+  try {
+    const svgRoot = wrapper.querySelector('svg');
+    if (svgRoot) {
+      const rects = Array.from(svgRoot.querySelectorAll('rect'));
+      rects.forEach(r => {
+        const w = parseFloat(r.getAttribute('width') || 0);
+        const h = parseFloat(r.getAttribute('height') || 0);
+        if (w > 0 && h > 0 && (w >= 0.7 * svgRoot.viewBox.baseVal.width || h >= 0.7 * svgRoot.viewBox.baseVal.height)) {
+          r.remove();
+        } else {
+          r.style.display = 'none';
+        }
+      });
+    }
+  } catch(e){ console.warn('Could not strip cassette rects', e); }
+
   tokensGrid.appendChild(wrapper);
-  cassetteState[id] = { trackIndex, el:wrapper, onPad:false, cached:false, playing:false, queued:false };
+  cassetteState[id] = { trackIndex, el: wrapper, onPad:false, cached:false, playing:false, queued:false };
   makeDraggable(wrapper);
 }
 
-/* Drag + magnet logic */
+/* ============ Drag / magnet / drop (med subtil skugga) ============ */
 function getPadRectScreen(){
   const padBox = padRectEl.getBBox();
   const svgRect = playerSVG.getBoundingClientRect();
@@ -287,6 +282,7 @@ function getPadRectScreen(){
 function makeDraggable(elem){
   let dragging=false, pointerId=null, offset={x:0,y:0};
   const id = elem.dataset.cid;
+
   function onPointerDown(e){
     e.preventDefault();
     dragging=true; pointerId = e.pointerId;
@@ -297,43 +293,60 @@ function makeDraggable(elem){
     if (st.playing) stopCassette(id, true);
     elem.setPointerCapture(pointerId);
   }
+
   function onPointerMove(e){
     if(!dragging || e.pointerId !== pointerId) return;
     let nx = e.clientX - offset.x;
     let ny = e.clientY - offset.y;
+
     const pad = getPadRectScreen();
     const dx = e.clientX - pad.centerX, dy = e.clientY - pad.centerY;
     const dist = Math.sqrt(dx*dx + dy*dy);
     const magnetRadius = Math.max(pad.width, pad.height) * 0.75;
+
     if (dist < magnetRadius){
       const pull = 0.12 + (1 - dist/magnetRadius)*0.25;
       nx = nx + (pad.centerX - e.clientX)*pull;
       ny = ny + (pad.centerY - e.clientY)*pull;
       elem.style.transform = 'scale(1.02)';
     } else elem.style.transform = '';
+
     const stageRect = document.getElementById('stage').getBoundingClientRect();
     nx = Math.max(stageRect.left - 6, Math.min(nx, stageRect.right - elem.offsetWidth + 6));
     ny = Math.max(stageRect.top - 6, Math.min(ny, stageRect.bottom - elem.offsetHeight + 6));
     elem.style.left = (nx - tokensGrid.getBoundingClientRect().left) + 'px';
     elem.style.top  = (ny - tokensGrid.getBoundingClientRect().top) + 'px';
+
     const inside = (e.clientX >= pad.left && e.clientX <= pad.left + pad.width && e.clientY >= pad.top && e.clientY <= pad.top + pad.height);
-    if (inside) elem.style.boxShadow = '0 34px 80px rgba(0,0,0,0.7), 0 0 30px rgba(30,140,220,0.06)';
-    else elem.style.boxShadow = '0 18px 40px rgba(0,0,0,0.6)';
+    if (inside) {
+      // subtle shadow while hovering pad
+      elem.style.boxShadow = '0 18px 30px rgba(0,0,0,0.25)';
+    } else {
+      // normal drag shadow
+      elem.style.boxShadow = '0 12px 24px rgba(0,0,0,0.18)';
+    }
   }
+
   function onPointerUp(e){
     if(!dragging || e.pointerId !== pointerId) return;
-    dragging=false; elem.classList.remove('dragging'); elem.releasePointerCapture(pointerId); elem.style.transform='';
+    dragging=false;
+    elem.classList.remove('dragging');
+    elem.releasePointerCapture(pointerId);
+    elem.style.transform='';
+
     const rect = elem.getBoundingClientRect();
     const centerX = rect.left + rect.width/2;
     const centerY = rect.top + rect.height/2;
     const pad = getPadRectScreen();
-    const inside = (centerX >= pad.left && centerX <= pad.left + pad.width && centerX >= pad.left && centerY >= pad.top && centerY <= pad.top + pad.height);
+    const inside = (centerX >= pad.left && centerX <= pad.left + pad.width && centerY >= pad.top && centerY <= pad.top + pad.height);
+
     if (inside){
       const container = tokensGrid.getBoundingClientRect();
       const snapX = Math.max(pad.left + 12, Math.min(centerX, pad.left + pad.width - 12));
       const snapY = Math.max(pad.top + 12, Math.min(centerY, pad.top + pad.height - 12));
       elem.style.left = (snapX - container.left - rect.width/2) + 'px';
       elem.style.top  = (snapY - container.top - rect.height/2) + 'px';
+
       cassetteState[id].onPad = true;
       if (!cassetteState[id].cached){
         showLoading(true);
@@ -343,22 +356,21 @@ function makeDraggable(elem){
       if (cassetteState[id].onPad){
         cassetteState[id].onPad = false;
         removeFromQueue(id);
-        if (cassetteState[id].playing){
-          stopCassette(id, false);
-          startNextInQueue();
-        }
+        if (cassetteState[id].playing){ stopCassette(id, false); startNextInQueue(); }
       }
     }
   }
+
   elem.addEventListener('pointerdown', onPointerDown);
   window.addEventListener('pointermove', onPointerMove);
   window.addEventListener('pointerup', onPointerUp);
 }
 
-/* Helpers */
+/* ================
+   Controls / playback logic
+   ================ */
 function showLoading(on){ loadingBadge.style.display = on ? 'flex' : 'none'; }
 
-/* Drop handling */
 function handleDrop(cid){
   const st = cassetteState[cid];
   if (!powerOn) { showLoading(true); setTimeout(()=>showLoading(false),500); return; }
@@ -367,39 +379,46 @@ function handleDrop(cid){
   updateCassetteUI(cid);
 }
 
-/* Start/stop */
 function startCassette(cid){
-  if (!powerOn) { showLoading(true); setTimeout(()=>showLoading(false),500); return; }
-  const st = cassetteState[cid]; if(!st) return;
-  const idx = st.trackIndex; const aud = audioEls[idx];
-  if (aud && aud.src){
+  if (!powerOn) { showLoading(true); setTimeout(()=>showLoading(false),500); console.warn('[startCassette] power is OFF'); return; }
+  const st = cassetteState[cid];
+  if (!st) return;
+  const idx = st.trackIndex;
+  const aud = audioEls[idx];
+  if (!aud || !aud.src) { st.el.style.outline = '3px solid rgba(255,80,80,0.9)'; queueView.textContent = `Fel: Spår ${idx+1} saknar ljudkälla.`; return; }
+  try {
     aud.volume = masterVolume;
     aud.currentTime = 0;
-    aud.play().catch(e=>console.warn('Audio play err', e));
+    const playPromise = aud.play();
+    if (playPromise && typeof playPromise.then === 'function') {
+      playPromise.catch(e=> console.warn('play promise rejected', e));
+    }
+    st.playing = true; currentPlayingId = cid;
     aud.onended = ()=>{ st.playing=false; currentPlayingId=null; startNextInQueue(); updateCassetteUI(cid); };
-  } else {
-    setTimeout(()=>{ st.playing=false; currentPlayingId=null; startNextInQueue(); updateCassetteUI(cid); }, 8000 + Math.random()*4000);
+    console.log('[startCassette] started', idx+1);
+  } catch (err){
+    console.error('[startCassette] failed', err);
+    st.playing = false; currentPlayingId=null;
   }
-  st.playing = true; currentPlayingId = cid;
-  if (st.queued){ st.queued=false; playQueue = playQueue.filter(x=>x!==cid); }
   updateQueueView(); updateCassetteUI(cid);
 }
+
 function stopCassette(cid, dueToLift){
-  const st = cassetteState[cid]; if(!st) return;
-  const idx = st.trackIndex; const aud = audioEls[idx];
+  const st = cassetteState[cid];
+  if(!st) return;
+  const idx = st.trackIndex;
+  const aud = audioEls[idx];
   if (aud && !aud.paused){ try{ aud.pause(); aud.currentTime=0; }catch(e){} }
   st.playing=false; if (currentPlayingId===cid) currentPlayingId=null;
   if (st.queued){ st.queued=false; playQueue = playQueue.filter(x=>x!==cid); }
   updateQueueView(); updateCassetteUI(cid);
 }
 
-/* Queue */
 function startNextInQueue(){
   if (currentPlayingId) return;
   if (shuffleOn && playQueue.length>1){
     const idx = Math.floor(Math.random()*playQueue.length);
-    const next = playQueue.splice(idx,1)[0];
-    startCassette(next); return;
+    const next = playQueue.splice(idx,1)[0]; startCassette(next); return;
   }
   while (playQueue.length){
     const next = playQueue.shift();
@@ -408,72 +427,102 @@ function startNextInQueue(){
   }
   updateQueueView();
 }
+
 function removeFromQueue(cid){ playQueue = playQueue.filter(x=>x!==cid); if (cassetteState[cid]) cassetteState[cid].queued=false; updateQueueView(); }
 
-/* UI updates */
 function updateQueueView(){
   if (!currentPlayingId && playQueue.length===0){ queueView.textContent='Ingen kö'; return; }
   let out='';
   if (currentPlayingId){ out += `Spelar nu: Cassette ${cassetteState[currentPlayingId].trackIndex+1}\n`; }
-  if (playQueue.length){ out += '\nKö:\n'; playQueue.forEach((c,i)=> out += `${i+1}. Cassette ${cassetteState[c].trackIndex+1}\n`); }
+  if (playQueue.length){ out += '\nKö:\n'; playQueue.forEach((c,i)=> out+=`${i+1}. Cassette ${cassetteState[c].trackIndex+1}\n`); }
   queueView.textContent = out;
 }
+
 function updateCassetteUI(cid){
-  const st = cassetteState[cid]; if(!st) return;
+  const st = cassetteState[cid];
+  if(!st) return;
   const el = st.el;
-  if (st.playing) el.style.outline = '3px solid rgba(40,200,220,0.9)';
-  else if (st.queued) el.style.outline = '2px dashed rgba(200,200,200,0.15)';
-  else if (st.onPad && st.cached) el.style.outline = '1px solid rgba(255,255,255,0.03)';
-  else el.style.outline = 'none';
+  if (st.playing) {
+    el.style.outline = '4px solid rgba(40,200,220,0.95)';
+    el.style.boxShadow = '0 40px 60px rgba(30,160,220,0.08)';
+  } else if (st.queued) {
+    el.style.outline = '2px dashed rgba(200,200,200,0.12)';
+    el.style.boxShadow = '0 18px 30px rgba(0,0,0,0.06)';
+  } else if (st.onPad && st.cached) {
+    el.style.outline = '1px solid rgba(255,255,255,0.03)';
+    el.style.boxShadow = '0 10px 18px rgba(0,0,0,0.06)';
+  } else {
+    el.style.outline = 'none';
+    el.style.boxShadow = 'none';
+  }
 }
 
 /* Volume */
-function setMasterVolume(v){
-  masterVolume = Math.max(0, Math.min(1, v));
-  for (let i=0;i<audioEls.length;i++){
-    if (audioEls[i] && !audioEls[i].paused) audioEls[i].volume = masterVolume;
-  }
-}
+function setMasterVolume(v){ masterVolume = Math.max(0, Math.min(1, v)); for (let i=0;i<audioEls.length;i++){ if (audioEls[i] && !audioEls[i].paused) audioEls[i].volume = masterVolume; } }
 function changeMaster(d){ setMasterVolume(masterVolume + d); }
 
-/* Tap animation */
+/* tap animation */
 function tapAnimate(el){ if (!el) return; el.style.transition = 'transform 110ms cubic-bezier(.2,.9,.3,1)'; el.style.transform = 'scale(0.9)'; setTimeout(()=> el.style.transform = '', 140); }
 
-/* Buttons: unlock + power + shuffle + vol */
+/* unlock audio (must be triggered by user gesture) */
 async function unlockAudioOnce(){
   if (audioUnlocked) return;
   audioUnlocked = true;
-  for (let a of audioEls){ if (a && a.src){ try{ await a.play().then(()=>{ a.pause(); a.currentTime=0; }).catch(()=>{}); }catch(e){} } }
-  console.log('Audio unlocked by user gesture');
+  for (let i=0;i<audioEls.length;i++){
+    const a = audioEls[i];
+    if (!a || !a.src) continue;
+    try { await a.play().then(()=>{ a.pause(); a.currentTime = 0; }).catch(err=> console.warn('unlock play rejected', i+1, err)); } catch(e){ console.warn('unlock exception', e); }
+  }
 }
 
+/* Overlay buttons */
 if (powerBtnSvg){
   powerBtnSvg.addEventListener('click', async (e)=>{
     tapAnimate(powerBtnSvg);
     await unlockAudioOnce();
     powerOn = !powerOn;
-    powerStateLabel.textContent = 'Power: ' + (powerOn ? 'On' : 'Off');
-    powerBtnSvg.classList.toggle('btn-active-outline', powerOn);
+    powerBtnSvg.classList.toggle('btn-active', powerOn);
+    if (overlayOnLight) overlayOnLight.setAttribute('fill', powerOn ? '#6ee37b' : '#dcf8df');
     if (!powerOn){
-      for (let a of audioEls){ try{ a.pause(); a.currentTime = 0; }catch(e){} }
-      playQueue = []; currentPlayingId = null;
+      for (let a of audioEls){ try{ a.pause(); a.currentTime=0; }catch(e){} }
+      playQueue=[]; currentPlayingId=null;
       Object.keys(cassetteState).forEach(k=>{ cassetteState[k].playing=false; cassetteState[k].queued=false; updateCassetteUI(k); });
       updateQueueView();
-    } else {
-      startNextInQueue();
-    }
+    } else startNextInQueue();
   });
 }
-
-if (shuffleBtn){ shuffleBtn.addEventListener('click', (e)=>{ tapAnimate(shuffleBtn); shuffleOn = !shuffleOn; shuffleBtn.classList.toggle('btn-active-outline', shuffleOn); }); }
+if (shuffleBtn) shuffleBtn.addEventListener('click', (e)=>{ tapAnimate(shuffleBtn); shuffleOn = !shuffleOn; shuffleBtn.classList.toggle('btn-active', shuffleOn); });
 if (volDownBtn) volDownBtn.addEventListener('click', (e)=>{ tapAnimate(volDownBtn); changeMaster(-0.06); });
 if (volUpBtn) volUpBtn.addEventListener('click', (e)=>{ tapAnimate(volUpBtn); changeMaster(0.06); });
 
-/* initial */
+/* Wire embedded on-button inside player SVG (if present) */
+try {
+  const embeddedOn = playerSVG.getElementById('on-button');
+  if (embeddedOn) {
+    embeddedOn.style.pointerEvents = 'auto';
+    embeddedOn.addEventListener('click', async (e)=>{
+      e.stopPropagation();
+      tapAnimate(powerBtnSvg);
+      await unlockAudioOnce();
+      powerOn = !powerOn;
+      powerBtnSvg.classList.toggle('btn-active', powerOn);
+      if (overlayOnLight) overlayOnLight.setAttribute('fill', powerOn ? '#6ee37b' : '#dcf8df');
+      if (!powerOn){
+        for (let a of audioEls){ try{ a.pause(); a.currentTime=0; }catch(e){} }
+        playQueue=[]; currentPlayingId=null;
+        Object.keys(cassetteState).forEach(k=>{ cassetteState[k].playing=false; cassetteState[k].queued=false; updateCassetteUI(k); });
+        updateQueueView();
+      } else startNextInQueue();
+    });
+    const obs = new MutationObserver(()=>{ embeddedOn.querySelectorAll('path,circle').forEach(p=>p.setAttribute('stroke', powerOn ? 'rgba(31,122,239,0.95)' : '#b9b9b9')); });
+    obs.observe(powerBtnSvg, { attributes:true, attributeFilter:['class'] });
+  }
+} catch(e){ console.warn('could not wire embedded on-button', e); }
+
+/* initial UI */
 Object.keys(cassetteState).forEach(k=>updateCassetteUI(k));
 updateQueueView();
-
-console.log('CUBE player ready.');
+console.log('CUBE prototyp klar. Testa: klicka Power (overlay), dra kassetter till paddan.');
 </script>
 </body>
 </html>
