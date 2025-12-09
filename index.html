@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>The CUBE — prototyp (fixad)</title>
+<title>The CUBE — prototyp (knappar inuti SVG + synliga kassetter)</title>
 <style>
   :root{
     --bg:#e7e7e7;
@@ -15,65 +15,31 @@
   .page{ max-width:1200px; margin:22px auto; padding:12px; box-sizing:border-box;}
   .top-title{ color:#9a9a9a; margin-bottom:10px; font-size:14px; }
 
-  /* Two-column layout */
-  .layout { display:grid; grid-template-columns: 720px 1fr; gap:28px; align-items:start; }
+  /* layout */
+  .layout { display:grid; grid-template-columns:720px 1fr; gap:26px; align-items:start; }
 
-  /* Player card (left) */
-  .player-card{
-    width:720px; background:transparent; margin:0;
-    display:flex; flex-direction:column; gap:0;
-  }
-  .player-frame{
-    width:100%;
-    border-radius:12px;
-    overflow:visible;
-    background:transparent; /* make transparent: let SVG draw all visuals */
-  }
-  .reader-area { width:100%; height:720px; display:block; position:relative; }
+  .player-wrap{ width:720px; margin:0; }
+  .tokens-col{ min-height:720px; padding-top:12px; display:flex; flex-direction:column; gap:12px; align-items:flex-start; }
 
-  /* We show the SVG itself — no extra background */
-  #playerSVG{ width:100%; height:100%; display:block; }
+  /* tokensGrid (where cassettes are placed) */
+  .tokens-grid { width:320px; height:720px; position:relative; border-radius:6px; background:transparent; }
 
-  /* Footer area integrated (white strip under SVG drawn in the SVG itself) */
-  .footer-bar {
-    height:120px; display:flex; align-items:center; justify-content:space-between;
-    margin-top:8px; padding:12px 18px; box-sizing:border-box;
-  }
-
-  /* left power group */
-  .left-group{ display:flex; align-items:center; gap:12px; }
-  .indicator{ width:8px;height:8px;border-radius:50%; background:transparent; box-shadow:none; transition:all .18s; }
-  .power-btn{ width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid rgba(0,0,0,0.12); background:var(--panel); box-shadow:0 3px 8px rgba(0,0,0,0.06); cursor:pointer; transition:transform .12s; }
-  .power-btn:active{ transform:scale(.92); }
-
-  /* right control buttons */
-  .right-group{ display:flex; gap:22px; align-items:center; }
-  .ctrl-btn{ width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid rgba(0,0,0,0.12); background:var(--panel); box-shadow:0 3px 8px rgba(0,0,0,0.06); cursor:pointer; transition:transform .12s; }
-  .ctrl-btn:active{ transform:scale(.92); }
-
-  /* Tokens column (right): visible and shows cassettes */
-  .tokens-col { min-height:720px; padding-top:12px; display:flex; flex-direction:column; gap:18px; align-items:center; }
-  .tokens-grid { width:320px; height:720px; position:relative; border-radius:10px; }
-
-  /* Cassette element */
-  .cassette { position:absolute; width:200px; height:199px; cursor:grab; user-select:none; touch-action:none; transition: transform .12s, box-shadow .12s, outline .12s; background:transparent; z-index:120; }
+  /* cassette */
+  .cassette { position:absolute; width:193px; height:193px; cursor:grab; user-select:none; touch-action:none; transition: transform .12s, box-shadow .12s, outline .12s; background:transparent; z-index:40; }
   .cassette.dragging{ cursor:grabbing; transform:scale(1.02); }
-
-  /* remove rects inside cassette svg (extra guard) */
-  .cassette svg rect { display:none !important; }
-
-  /* cassette visual states */
+  .cassette svg rect { display:none !important; } /* remove any big rects */
   .cassette.playing { outline:4px solid rgba(40,200,220,0.95); box-shadow:0 30px 60px rgba(30,160,220,0.08); }
   .cassette.queued  { outline:2px dashed rgba(200,200,200,0.12); box-shadow:0 18px 30px rgba(0,0,0,0.06); }
 
-  /* Accessibility / focus: remove default blue ring but keep subtle box-shadow for buttons */
-  #playerSVG, #playerSVG * { outline:none !important; -webkit-tap-highlight-color: transparent; }
-  .power-btn:focus, .ctrl-btn:focus { outline:none; box-shadow:0 0 0 6px rgba(0,0,0,0.03); }
+  /* subtle helper text */
+  .hint{ color:#6e6e6e; font-size:13px; }
+
+  /* remove browser focus ring for svg and children */
+  svg#playerSVG, svg#playerSVG * { outline:none !important; -webkit-tap-highlight-color: transparent; }
 
   /* small responsive */
   @media (max-width:1000px){
     .layout{ grid-template-columns: 1fr; }
-    .tokens-col{ order:2; display:flex; justify-content:center; }
   }
 </style>
 </head>
@@ -82,61 +48,81 @@
     <div class="top-title">The cube digital prototype 1</div>
 
     <div class="layout">
-      <!-- Left: Player -->
-      <div class="player-card">
-        <div class="player-frame">
-          <div class="reader-area" id="readerArea">
-            <!-- YOUR PLAYER SVG (original) — kept exactly as you provided -->
-            <svg id="playerSVG" tabindex="-1" xmlns="http://www.w3.org/2000/svg" width="552" height="673" viewBox="0 0 552 673" preserveAspectRatio="xMidYMid meet">
+      <!-- LEFT: player with embedded buttons (inside SVG) -->
+      <div class="player-wrap">
+        <!-- Player SVG: I injected 4 button groups into this SVG at the white footer area.
+             Each group has id: svgBtn_power, svgBtn_shuffle, svgBtn_volDown, svgBtn_volUp.
+             They are clickable and animate on click in the JS below. -->
+        <svg id="playerSVG" tabindex="-1" xmlns="http://www.w3.org/2000/svg" width="552" height="673" viewBox="0 0 552 673" preserveAspectRatio="xMidYMid meet">
   <defs>
     <filter id="Rectangle_3"><feOffset input="SourceAlpha"/><feGaussianBlur stdDeviation="1.5" result="blur"/><feFlood result="color"/><feComposite operator="out" in="SourceGraphic" in2="blur"/><feComposite operator="in" in="color"/><feComposite operator="in" in2="SourceGraphic"/></filter>
     <clipPath id="clip-The_cube_digital_prototype_1_1"><rect width="552" height="673"/></clipPath>
   </defs>
+
   <g id="The_cube_digital_prototype_1_1" clip-path="url(#clip-The_cube_digital_prototype_1_1)">
+    <!-- outer body -->
     <g id="Playyer_body" transform="translate(2 2)" fill="#fff" stroke="#a8a8a8" stroke-width="1">
       <rect width="547" height="671" rx="12" stroke="none"/>
       <rect x="0.5" y="0.5" width="546" height="670" rx="11.5" fill="none"/>
     </g>
+
+    <!-- reader pad -->
     <g id="REader_pad" transform="translate(-291 -175)">
       <g data-type="innerShadowGroup">
-        <rect id="Rectangle_3-2" width="535" height="535" rx="8" transform="translate(299 183)" fill="#f7f7f7" opacity="0.997"/>
+        <rect id="Rectangle_3-2" data-name="Rectangle 3" width="535" height="535" rx="8" transform="translate(299 183)" fill="#f7f7f7" opacity="0.997"/>
         <g transform="matrix(1, 0, 0, 1, 291, 175)" filter="url(#Rectangle_3)">
-          <rect id="Rectangle_3-3" width="535" height="535" rx="8" transform="translate(8 8)" fill="#fff" opacity="0.997"/>
+          <rect id="Rectangle_3-3" data-name="Rectangle 3" width="535" height="535" rx="8" transform="translate(8 8)" fill="#fff" opacity="0.997"/>
         </g>
       </g>
       <g id="Ellipse_21" transform="translate(321 204)" fill="none" stroke="#e5e5e5" stroke-width="1">
         <circle cx="246.5" cy="246.5" r="246.5"/><circle cx="246.5" cy="246.5" r="246" fill="none"/>
       </g>
     </g>
+
     <text id="Reader_pad-2" transform="translate(26 33)" fill="#707070" font-size="15" font-family="HelveticaNeue, Helvetica Neue"><tspan x="0" y="0">Reader pad</tspan></text>
+
+    <!-- ===========================
+         Embedded Controls (placed on the white bottom of the SVG)
+         IDs used by JS: svgBtn_power, svgBtn_shuffle, svgBtn_volDown, svgBtn_volUp
+         =========================== -->
+    <g id="svgControls" transform="translate(0,560)">
+      <!-- power button group, placed left -->
+      <g id="svgBtn_power" class="svg-btn" transform="translate(36,12)" cursor="pointer">
+        <circle cx="24" cy="24" r="22" fill="#fff" stroke="#a8a8a8" stroke-width="1.2" />
+        <path d="M24 12v9" stroke="#111" stroke-width="1.6" stroke-linecap="round" fill="none"/>
+        <circle cx="24" cy="24" r="10.5" fill="none" stroke="#111" stroke-width="1.1"/>
+        <circle id="svg_power_light" cx="52" cy="8" r="4" fill="#dff6df" opacity="1" />
+      </g>
+
+      <!-- shuffle -->
+      <g id="svgBtn_shuffle" class="svg-btn" transform="translate(320,22)" cursor="pointer">
+        <circle cx="14" cy="14" r="14" fill="#fff" stroke="#a8a8a8" stroke-width="1.2" />
+        <path d="M6 12 L14 12 C18 12 20 12 22 13.5" stroke="#111" stroke-width="1.1" fill="none" stroke-linecap="round"/>
+        <path d="M22 9 L26 5 L22 1" stroke="#111" stroke-width="1.1" fill="none" stroke-linecap="round"/>
+      </g>
+
+      <!-- vol down -->
+      <g id="svgBtn_volDown" class="svg-btn" transform="translate(380,22)" cursor="pointer">
+        <circle cx="14" cy="14" r="14" fill="#fff" stroke="#a8a8a8" stroke-width="1.2" />
+        <path d="M6 14h16" stroke="#111" stroke-width="1.4" stroke-linecap="round"/>
+      </g>
+
+      <!-- vol up -->
+      <g id="svgBtn_volUp" class="svg-btn" transform="translate(440,22)" cursor="pointer">
+        <circle cx="14" cy="14" r="14" fill="#fff" stroke="#a8a8a8" stroke-width="1.2" />
+        <path d="M14 6v16" stroke="#111" stroke-width="1.4" stroke-linecap="round"/>
+        <path d="M6 14h16" stroke="#111" stroke-width="1.4" stroke-linecap="round"/>
+      </g>
+    </g>
+
   </g>
 </svg>
-          </div>
-        </div>
-
-        <!-- footer controls (kept minimal — the SVG above already draws the bottom white panel visually) -->
-        <div class="footer-bar" aria-hidden="false">
-          <div class="left-group">
-            <div id="powerIndicator" class="indicator" aria-hidden="true"></div>
-            <button id="powerBtn" class="power-btn" aria-pressed="false" title="Power">
-              <svg viewBox="0 0 24 24" width="20" height="20" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="9" fill="none" stroke="#111" stroke-width="1.1"></circle><path d="M12 7v5" stroke="#111" stroke-width="1.4" stroke-linecap="round" fill="none"></path></svg>
-            </button>
-          </div>
-
-          <div class="right-group">
-            <button id="shuffleBtn" class="ctrl-btn" title="Shuffle" aria-pressed="false">
-              <svg viewBox="0 0 24 24" width="18" height="18" xmlns="http://www.w3.org/2000/svg"><path d="M3 7h4.5c1.6 0 2.5 0 3.4.5 0 0 1 .6 2.6 2.7" stroke="#111" stroke-width="1.1" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 7l-3-3v2.2" stroke="#111" stroke-width="1.1" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 17l-3 3v-2.2" stroke="#111" stroke-width="1.1" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            </button>
-            <button id="volDownBtn" class="ctrl-btn" title="Vol-"><svg viewBox="0 0 24 24" width="16" height="16" xmlns="http://www.w3.org/2000/svg"><path d="M5 12h10" stroke="#111" stroke-width="1.4" stroke-linecap="round" fill="none"/></svg></button>
-            <button id="volUpBtn" class="ctrl-btn" title="Vol+"><svg viewBox="0 0 24 24" width="16" height="16" xmlns="http://www.w3.org/2000/svg"><path d="M12 5v14" stroke="#111" stroke-width="1.4" stroke-linecap="round" fill="none"/><path d="M5 12h14" stroke="#111" stroke-width="1.4" stroke-linecap="round" fill="none"/></svg></button>
-          </div>
-        </div>
 
       </div>
 
-      <!-- Right: tokens -->
+      <!-- RIGHT: tokens column -->
       <div class="tokens-col">
-        <div style="font-size:13px;color:#6e6e6e;margin-bottom:6px;">Cassette tokens — dra till plattan</div>
+        <div class="hint">Cassette tokens — dra till plattan</div>
         <div id="tokensGrid" class="tokens-grid" aria-hidden="false"></div>
       </div>
     </div>
@@ -144,7 +130,7 @@
 
 <script>
 /* ============================
-   AUDIO SOURCES
+   Audio files (fetch->blob)
    ============================ */
 const AUDIO_FILES = [
   'https://raw.githubusercontent.com/StoneMarble303/THEAUDIOCUBE/main/audio/Armaku_ElektroPunk_Full_Drum_Loop_120_08.wav',
@@ -175,31 +161,35 @@ async function initAudioSources(){
 initAudioSources();
 
 /* ============================
-   Cassette SVG + creation + drag (visible now)
+   Cassette SVG (you provided) as template
    ============================ */
-const CASSETTE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="199" viewBox="0 0 200 199">
-  <defs><clipPath id="clip-cassette"><rect width="200" height="199"/></clipPath></defs>
-  <g id="cassette" clip-path="url(#clip-cassette)">
-    <g id="Cassestte" transform="translate(-944 -138)">
-      <g id="Ellipse_23" transform="translate(948 142)" fill="#dbe1e8" stroke="#707070" stroke-width="1">
-        <circle cx="96.5" cy="96.5" r="96.5"/><circle cx="96.5" cy="96.5" r="96" fill="none"/>
+const CASSETTE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="193" height="193" viewBox="0 0 193 193">
+  <g id="Group_13" transform="translate(-974 -212)">
+    <g id="Group_12">
+      <g id="Cassestte" transform="translate(26 70)">
+        <g id="Ellipse_23" transform="translate(948 142)" fill="#dbe1e8" stroke="#707070" stroke-width="1">
+          <circle cx="96.5" cy="96.5" r="96.5"/><circle cx="96.5" cy="96.5" r="96" fill="none"/>
+        </g>
+        <g id="Ellipse_22" transform="translate(956 150)" fill="#dbe1e8" stroke="#707070" stroke-width="1" opacity="0.188">
+          <circle cx="88.5" cy="88.5" r="88.5"/><circle cx="88.5" cy="88.5" r="88" fill="none"/>
+        </g>
+        <g id="Ellipse_3" transform="translate(1035 229)" fill="#ebebeb" stroke="#707070" stroke-width="1">
+          <circle cx="9.5" cy="9.5" r="9.5"/><circle cx="9.5" cy="9.5" r="9" fill="none"/>
+        </g>
+        <text id="Track_1" transform="translate(1015 286)" fill="#707070" font-size="20" font-family="HelveticaNeue, Helvetica Neue"><tspan x="0" y="0">Track</tspan></text>
       </g>
-      <g id="Ellipse_22" transform="translate(956 150)" fill="#dbe1e8" stroke="#707070" stroke-width="1" opacity="0.188">
-        <circle cx="88.5" cy="88.5" r="88.5"/><circle cx="88.5" cy="88.5" r="88" fill="none"/>
-      </g>
-      <g id="Ellipse_3" transform="translate(1035 229)" fill="#ebebeb" stroke="#707070" stroke-width="1">
-        <circle cx="9.5" cy="9.5" r="9.5"/><circle cx="9.5" cy="9.5" r="9" fill="none"/>
-      </g>
-      <text id="Track_1" transform="translate(1015 286)" fill="#707070" font-size="20" font-family="HelveticaNeue, Helvetica Neue"><tspan x="0" y="0">Track</tspan></text>
     </g>
   </g>
 </svg>`;
 
+/* ============================
+   Create visible cassettes in tokensGrid
+   ============================ */
 const tokensGrid = document.getElementById('tokensGrid');
 let cassetteState = {}, playQueue = [], currentPlayingId = null;
 
-/* initial positions in tokensGrid */
-const positions = [{left:20,top:20},{left:20,top:250},{left:20,top:480}];
+/* positions array for initial placement */
+const positions = [{left:10,top:10},{left:10,top:230},{left:10,top:450}];
 for (let i=0;i<3;i++) createCassette('c'+(i+1), i, positions[i]);
 
 function createCassette(id, trackIndex, pos){
@@ -207,30 +197,17 @@ function createCassette(id, trackIndex, pos){
   wrapper.className = 'cassette';
   wrapper.dataset.cid = id;
   wrapper.dataset.track = trackIndex;
-  wrapper.style.left = pos.left+'px';
-  wrapper.style.top = pos.top+'px';
+  wrapper.style.left = pos.left + 'px';
+  wrapper.style.top = pos.top + 'px';
   wrapper.innerHTML = CASSETTE_SVG;
-
-  // hide large rects inside SVG if present
-  try {
-    const svgRoot = wrapper.querySelector('svg');
-    if (svgRoot) {
-      const rects = Array.from(svgRoot.querySelectorAll('rect'));
-      rects.forEach(r => {
-        const w = parseFloat(r.getAttribute('width')||0);
-        const h = parseFloat(r.getAttribute('height')||0);
-        if (w > 0 && h > 0 && (w >= 0.7 * svgRoot.viewBox.baseVal.width || h >= 0.7 * svgRoot.viewBox.baseVal.height)) r.remove();
-        else r.style.display='none';
-      });
-    }
-  } catch(e){ console.warn('strip cassette rects failed', e); }
-
+  // remove background rects if present (guard)
+  try { wrapper.querySelectorAll('rect').forEach(r=>r.remove()); } catch(e){}
   tokensGrid.appendChild(wrapper);
   cassetteState[id] = { trackIndex, el: wrapper, onPad:false, cached:false, playing:false, queued:false };
   makeDraggable(wrapper);
 }
 
-/* ====== drag + magnet logic (similar behavior as before) ====== */
+/* ===== drag/magnet logic (snap to pad) ===== */
 const playerSVG = document.getElementById('playerSVG');
 const padRectEl = playerSVG.getElementById('Rectangle_3-2') || playerSVG.getElementById('Rectangle_3-3') || playerSVG.querySelector('rect[rx="8"]');
 
@@ -262,7 +239,6 @@ function makeDraggable(elem){
     if(!dragging || e.pointerId!==pid) return;
     let nx = e.clientX - offset.x;
     let ny = e.clientY - offset.y;
-    // magnet effect
     const pad = getPadRectScreen();
     const dx = e.clientX - pad.centerX, dy = e.clientY - pad.centerY;
     const dist = Math.sqrt(dx*dx + dy*dy);
@@ -291,7 +267,7 @@ function makeDraggable(elem){
     const pad = getPadRectScreen();
     const inside = (centerX >= pad.left && centerX <= pad.left + pad.width && centerY >= pad.top && centerY <= pad.top + pad.height);
     if (inside){
-      // snap to pad center-ish
+      // snap to pad center region
       const container = tokensGrid.getBoundingClientRect();
       const snapX = pad.centerX - rect.width/2;
       const snapY = pad.centerY - rect.height/2;
@@ -300,11 +276,9 @@ function makeDraggable(elem){
       cassetteState[id].onPad = true;
       if (!cassetteState[id].cached){
         cassetteState[id].cached = true;
-        // simulate preload latency then start
-        setTimeout(()=>handleDrop(id), 450 + Math.random()*450);
+        setTimeout(()=>handleDrop(id), 400 + Math.random()*400);
       } else handleDrop(id);
     } else {
-      // removed from pad
       if (cassetteState[id].onPad) {
         cassetteState[id].onPad = false;
         removeFromQueue(id);
@@ -319,15 +293,13 @@ function makeDraggable(elem){
   window.addEventListener('pointerup', up);
 }
 
-/* ================ playback queue logic ================ */
+/* =============== Playback + queue logic =============== */
 function handleDrop(cid){
   const st = cassetteState[cid];
   if (!st) return;
-  if (!window._powerOn) { console.log('power off — cached but not started'); return; }
+  if (!window._powerOn) { console.log('power off — cached'); return; }
   if (!currentPlayingId) startCassette(cid);
-  else {
-    if (!st.queued){ st.queued = true; playQueue.push(cid); updateAllUI(); }
-  }
+  else if (!st.queued){ st.queued=true; playQueue.push(cid); updateAllUI(); }
 }
 
 function startCassette(cid){
@@ -335,33 +307,27 @@ function startCassette(cid){
   if (!st) return;
   const idx = st.trackIndex;
   const aud = audioEls[idx];
-  if (!aud || !aud.src) { console.warn('no audio for', idx); return; }
-  try {
-    aud.volume = window._masterVolume || 0.9;
-    aud.currentTime = 0;
-    const p = aud.play();
-    if (p && p.catch) p.catch(e=>console.warn('play rejected', e));
-    st.playing = true; st.queued = false; currentPlayingId = cid;
-    aud.onended = ()=>{ st.playing=false; currentPlayingId=null; startNextInQueue(); updateAllUI(); };
-    updateAllUI();
-  } catch(e){ console.error('start fail', e); }
+  if (!aud || !aud.src) { console.warn('no audio for track', idx); return; }
+  aud.volume = window._masterVolume || 0.9;
+  aud.currentTime = 0;
+  const p = aud.play();
+  if (p && p.catch) p.catch(e=>console.warn('play rejected', e));
+  st.playing=true; st.queued=false; currentPlayingId = cid;
+  aud.onended = ()=>{ st.playing=false; currentPlayingId=null; startNextInQueue(); updateAllUI(); };
+  updateAllUI();
 }
 
 function stopCassette(cid, dueToLift){
-  const st = cassetteState[cid];
-  if (!st) return;
-  const idx = st.trackIndex;
-  const aud = audioEls[idx];
-  if (aud && !aud.paused){ try{ aud.pause(); aud.currentTime=0; }catch(e){} }
-  st.playing=false;
-  if (currentPlayingId === cid) currentPlayingId = null;
+  const st = cassetteState[cid]; if (!st) return;
+  const aud = audioEls[st.trackIndex]; if (aud && !aud.paused){ try{ aud.pause(); aud.currentTime=0; }catch(e){} }
+  st.playing=false; if (currentPlayingId===cid) currentPlayingId=null;
   if (st.queued){ st.queued=false; playQueue = playQueue.filter(x=>x!==cid); }
   updateAllUI();
 }
 
 function startNextInQueue(){
   if (currentPlayingId) return;
-  if (playQueue.length === 0) return;
+  if (playQueue.length===0) return;
   const next = window._shuffleOn ? playQueue.splice(Math.floor(Math.random()*playQueue.length),1)[0] : playQueue.shift();
   if (next && cassetteState[next] && cassetteState[next].onPad) startCassette(next);
   updateAllUI();
@@ -375,15 +341,15 @@ function updateAllUI(){
     s.el.classList.toggle('playing', !!s.playing);
     s.el.classList.toggle('queued', !!s.queued);
   });
-  // (could update an on-screen queue)...
 }
 
-/* ================ Controls wiring ================ */
-const powerBtn = document.getElementById('powerBtn');
-const shuffleBtn = document.getElementById('shuffleBtn');
-const volDownBtn = document.getElementById('volDownBtn');
-const volUpBtn = document.getElementById('volUpBtn');
-const powerIndicator = document.getElementById('powerIndicator');
+/* =============== Controls: embedded SVG buttons wiring =============== */
+const svgRoot = document.getElementById('playerSVG');
+const svgBtn_power = svgRoot.getElementById('svgBtn_power');
+const svgBtn_shuffle = svgRoot.getElementById('svgBtn_shuffle');
+const svgBtn_volDown = svgRoot.getElementById('svgBtn_volDown');
+const svgBtn_volUp = svgRoot.getElementById('svgBtn_volUp');
+const svg_power_light = svgRoot.getElementById('svg_power_light');
 
 window._masterVolume = 0.9;
 window._powerOn = false;
@@ -392,37 +358,76 @@ window._shuffleOn = false;
 async function unlockAudioOnce(){
   if (window._audioUnlocked) return;
   window._audioUnlocked = true;
-  for (let a of audioEls){ if (!a || !a.src) continue; try{ await a.play().then(()=>{ a.pause(); a.currentTime=0; }).catch(()=>{}); }catch(e){} }
+  for (let a of audioEls) if (a && a.src) {
+    try { await a.play().then(()=>{ a.pause(); a.currentTime=0; }).catch(()=>{}); } catch(e){}
+  }
 }
 
-powerBtn.addEventListener('click', async ()=>{
-  await unlockAudioOnce();
-  window._powerOn = !window._powerOn;
-  powerBtn.setAttribute('aria-pressed', String(window._powerOn));
-  powerIndicator.style.background = window._powerOn ? '#dff6df' : 'transparent';
-  powerIndicator.style.boxShadow = window._powerOn ? '0 0 0 6px rgba(110,227,123,0.04)' : 'none';
-  if (!window._powerOn) {
-    // stop everything
-    Object.keys(cassetteState).forEach(k=>{ stopCassette(k,false); cassetteState[k].queued=false; cassetteState[k].onPad=false; });
-    playQueue = []; currentPlayingId = null;
-    // reset cassette positions to right column
-    Object.keys(cassetteState).forEach((k,i)=> {
-      const el = cassetteState[k].el;
-      el.style.left = positions[i].left + 'px';
-      el.style.top = positions[i].top + 'px';
-    });
-    updateAllUI();
-  }
-});
+function animateSvgBtn(g){
+  if (!g) return;
+  try {
+    g.style.transition = 'transform 110ms ease';
+    g.style.transform = 'scale(0.92)';
+    setTimeout(()=> g.style.transform = '', 150);
+  } catch(e){}
+}
 
-shuffleBtn.addEventListener('click', ()=>{ window._shuffleOn = !window._shuffleOn; shuffleBtn.setAttribute('aria-pressed', String(window._shuffleOn)); shuffleBtn.style.boxShadow = window._shuffleOn ? '0 6px 20px rgba(0,0,0,0.12)' : '0 3px 8px rgba(0,0,0,0.06)'; });
+if (svgBtn_power){
+  svgBtn_power.addEventListener('click', async (e)=>{
+    e.stopPropagation();
+    animateSvgBtn(svgBtn_power);
+    await unlockAudioOnce();
+    window._powerOn = !window._powerOn;
+    svgBtn_power.setAttribute('data-pressed', String(window._powerOn));
+    svg_power_light.setAttribute('fill', window._powerOn ? '#6ee37b' : '#dff6df');
+    if (!window._powerOn){
+      // stop audio & reset positions
+      Object.keys(cassetteState).forEach(k=>{ stopCassette(k,false); cassetteState[k].queued=false; cassetteState[k].onPad=false; });
+      playQueue=[]; currentPlayingId=null;
+      Object.keys(cassetteState).forEach((k,i)=> {
+        const el = cassetteState[k].el; el.style.left = positions[i].left + 'px'; el.style.top = positions[i].top + 'px';
+      });
+      updateAllUI();
+    } else {
+      startNextInQueue();
+    }
+  });
+}
 
-volDownBtn.addEventListener('click', ()=>{ window._masterVolume = Math.max(0, window._masterVolume - 0.06); audioEls.forEach(a=>{ if (a) a.volume = window._masterVolume; }); });
-volUpBtn.addEventListener('click', ()=>{ window._masterVolume = Math.min(1, window._masterVolume + 0.06); audioEls.forEach(a=>{ if (a) a.volume = window._masterVolume; }); });
+if (svgBtn_shuffle){
+  svgBtn_shuffle.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    animateSvgBtn(svgBtn_shuffle);
+    window._shuffleOn = !window._shuffleOn;
+    svgBtn_shuffle.setAttribute('data-pressed', String(window._shuffleOn));
+    // subtle visual feedback: change stroke color slightly
+    const circle = svgBtn_shuffle.querySelector('circle');
+    if (circle) circle.setAttribute('stroke', window._shuffleOn ? '#111' : '#a8a8a8');
+  });
+}
 
-/* initial UI */
+if (svgBtn_volDown){
+  svgBtn_volDown.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    animateSvgBtn(svgBtn_volDown);
+    window._masterVolume = Math.max(0, window._masterVolume - 0.06);
+    audioEls.forEach(a=>{ if (a) a.volume = window._masterVolume; });
+  });
+}
+
+if (svgBtn_volUp){
+  svgBtn_volUp.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    animateSvgBtn(svgBtn_volUp);
+    window._masterVolume = Math.min(1, window._masterVolume + 0.06);
+    audioEls.forEach(a=>{ if (a) a.volume = window._masterVolume; });
+  });
+}
+
+/* initial UI state */
+svg_power_light.setAttribute('fill', '#dff6df');
 updateAllUI();
-console.log('Ready — fixes applied: tokens visible, reader transparent, controls contrast fixed.');
+console.log('Ready — embedded SVG buttons wired, cassettes visible & draggable.');
 </script>
 </body>
 </html>
