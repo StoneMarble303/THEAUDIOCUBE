@@ -208,18 +208,36 @@ function createCassette(id, trackIndex, pos){
 }
 
 /* ===== drag/magnet logic (snap to pad) ===== */
+// robust pad lookup + screen rect (använd getBoundingClientRect för korrekta skärmkoordinater)
 const playerSVG = document.getElementById('playerSVG');
-const padRectEl = playerSVG.getElementById('Rectangle_3-2') || playerSVG.getElementById('Rectangle_3-3') || playerSVG.querySelector('rect[rx="8"]');
+// försök hitta pad-rect via id först, annars via selector i dokument
+let padRectEl = document.getElementById('Rectangle_3-2') || document.getElementById('Rectangle_3-3') || document.querySelector('#playerSVG rect[rx="8"]');
+
+// Om padRectEl inte hittas direkt — försök igen efter kort delay (SVG kan ladda)
+if (!padRectEl) {
+  setTimeout(()=> {
+    padRectEl = document.getElementById('Rectangle_3-2') || document.getElementById('Rectangle_3-3') || document.querySelector('#playerSVG rect[rx="8"]');
+    if (!padRectEl) console.warn('Reader pad rect not found in SVG');
+  }, 60);
+}
 
 function getPadRectScreen(){
-  const padBox = padRectEl.getBBox();
-  const svgRect = playerSVG.getBoundingClientRect();
-  const viewBox = playerSVG.viewBox.baseVal;
-  const scaleX = svgRect.width / viewBox.width;
-  const scaleY = svgRect.height / viewBox.height;
-  const left = svgRect.left + padBox.x * scaleX;
-  const top  = svgRect.top  + padBox.y * scaleY;
-  return { left, top, width: padBox.width * scaleX, height: padBox.height * scaleY, centerX:left + (padBox.x + padBox.width/2)*scaleX, centerY: top + (padBox.y + padBox.height/2)*scaleY };
+  // Om vi har ett element, använd dess boundingClientRect (mest robust)
+  const rectEl = padRectEl || document.querySelector('#playerSVG rect[rx="8"]') || document.querySelector('#playerSVG rect');
+  if (!rectEl) {
+    // fallback: använd hela SVG area ungefär
+    const svgRect = playerSVG.getBoundingClientRect();
+    return { left: svgRect.left + 40, top: svgRect.top + 40, width: svgRect.width - 80, height: svgRect.height - 220, centerX: svgRect.left + svgRect.width/2, centerY: svgRect.top + svgRect.height/2 };
+  }
+  const r = rectEl.getBoundingClientRect();
+  return {
+    left: r.left,
+    top: r.top,
+    width: r.width,
+    height: r.height,
+    centerX: r.left + r.width/2,
+    centerY: r.top + r.height/2
+  };
 }
 
 function makeDraggable(elem){
