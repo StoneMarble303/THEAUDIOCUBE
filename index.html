@@ -133,9 +133,10 @@
 /* ============================
    Konfiguration & Audio setup
    ============================ */
+// ===== robust audio init (ersätt tidigare audioEls-setup med detta) =====
 const AUDIO_FILES = [
-  'https://raw.githubusercontent.com/StoneMarble303/THEAUDIOCUBE/main/audio/Armaku_ElektroPunk_Bass_Loop_11_130_Eb_Min.wav'
-  'https://raw.githubusercontent.com/StoneMarble303/THEAUDIOCUBE/main/audio/Armaku_ElektroPunk_Full_Drum_Loop_120_06.wav'
+  'https://raw.githubusercontent.com/StoneMarble303/THEAUDIOCUBE/main/audio/Armaku_ElektroPunk_Bass_Loop_11_130_Eb_Min.wav,
+  'https://raw.githubusercontent.com/StoneMarble303/THEAUDIOCUBE/main/Armaku_ElektroPunk_Full_Drum_Loop_120_06.wav',
   'https://raw.githubusercontent.com/StoneMarble303/THEAUDIOCUBE/main/audio/Armaku_ElektroPunk_Full_Drum_Loop_120_08.wav'
 ];
 
@@ -200,7 +201,6 @@ async function initAudioSources(){
   }
 }
 initAudioSources();
-
 /* ============================
    State + refs
    ============================ */
