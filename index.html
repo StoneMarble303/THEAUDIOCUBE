@@ -123,42 +123,88 @@
   <div class="loading-badge" id="loadingBadge"><div class="loader"></div><div>Loading…</div></div>
 
 <script>
-/* ============================
-   AUDIO: sätt dina råa URLs här (byt till dina egna om du vill)
-   ============================ */
+// ===== bättre debug-version av initAudioSources =====
 const AUDIO_FILES = [
   'https://raw.githubusercontent.com/StoneMarble303/THEAUDIOCUBE/main/audio/Armaku_ElektroPunk_Full_Drum_Loop_120_08.wav',
   'https://raw.githubusercontent.com/StoneMarble303/THEAUDIOCUBE/main/audio/Armaku_ElektroPunk_Bass_Loop_11_130_Eb_Min.wav',
   'https://raw.githubusercontent.com/StoneMarble303/THEAUDIOCUBE/main/audio/Armaku_ElektroPunk_Full_Drum_Loop_120_06.wav',
-  null
+  // null om du inte har en 4:e ännu
 ];
 
-/* Robust audio init: försöker fetch->blob för maximal säkerhet */
-const audioEls = [null, null, null];
+const audioEls = [];
+
 async function initAudioSources(){
-  for (let i=0;i<AUDIO_FILES.length;i++){
+  for (let i = 0; i < AUDIO_FILES.length; i++){
     const url = AUDIO_FILES[i];
-    audioEls[i] = new Audio();
-    if (!url) { console.warn('[audio init] track', i+1, 'url missing'); continue; }
-    console.log('[audio init] checking url', i, url);
-    try {
-      // försöka fetch fil
-      const r = await fetch(url);
-      if (!r.ok){ console.warn('[audio init] fetch failed', r.status, url); continue; }
-      const blob = await r.blob();
-      audioEls[i].src = URL.createObjectURL(blob);
-      audioEls[i].preload = 'auto';
-      console.log('[audio init] loaded track', i+1, 'via blob');
-    } catch(e){
-      console.warn('[audio init] error loading', url, e);
-      // fallback: sätt direkt (kan vara CORS-blocked)
-      audioEls[i].src = url;
-      audioEls[i].preload = 'auto';
+    const audio = new Audio();
+    audioEls[i] = audio;
+    if (!url) {
+      console.warn(`[audio init] track ${i+1} url missing (null).`);
+      continue;
     }
-    // debug errors
-    audioEls[i].addEventListener('error', (ev)=> console.warn('Audio element error for track', i+1, ev, 'src=', audioEls[i].src));
+    console.log(`[audio init] checking track ${i+1}:`, url);
+
+    try {
+      // 1) Gör en HEAD för snabb insikt (vissa hosts blockerar HEAD -> fångas)
+      let headOk = false;
+      try {
+        const head = await fetch(url, { method: 'HEAD' });
+        console.log(`[audio init] HEAD ${i+1}:`, head.status, head.statusText);
+        headOk = head.ok;
+        if (headOk){
+          console.log(`[audio init] HEAD headers: content-type=${head.headers.get('content-type')}, content-length=${head.headers.get('content-length')}`);
+        }
+      } catch (headErr) {
+        console.warn(`[audio init] HEAD failed for track ${i+1} (will try GET):`, headErr);
+      }
+
+      // 2) Hämta filen (GET). Vi använder GET direkt — många hosts svarar bättre på GET.
+      const r = await fetch(url, { method: 'GET' });
+      console.log(`[audio init] GET ${i+1} status:`, r.status, r.statusText);
+      if (!r.ok) {
+        // visa mer info i console
+        console.warn(`[audio init] GET returned ${r.status} for track ${i+1}: ${url}`);
+        continue;
+      }
+
+      const contentType = r.headers.get('content-type');
+      const contentLen = r.headers.get('content-length');
+      console.log(`[audio init] GET headers for ${i+1}: content-type=${contentType}, content-length=${contentLen}`);
+
+      // 3) Kontrollera content-type: browsern behöver en spelbar typ (audio/wav, audio/mpeg, audio/mp3)
+      if (contentType && !contentType.startsWith('audio/')) {
+        console.warn(`[audio init] WARNING: content-type for track ${i+1} is '${contentType}', not an audio/* type. Browser may reject it.`);
+      }
+
+      // 4) Läs blob och skapa object URL (stabilast för playback)
+      const blob = await r.blob();
+      console.log(`[audio init] blob size for track ${i+1}:`, blob.size, 'bytes');
+      const objectUrl = URL.createObjectURL(blob);
+      audio.src = objectUrl;
+      audio.preload = 'auto';
+      console.log(`[audio init] loaded track ${i+1} via blob URL`);
+    } catch (err) {
+      console.error(`[audio init] unexpected error loading track ${i+1}:`, err);
+      // fallback: försök ställa direkt src (kan blockas av CORS)
+      try {
+        audio.src = url;
+        audio.preload = 'auto';
+        console.warn(`[audio init] fallback: set audio.src directly for track ${i+1}`);
+      } catch(e2){
+        console.error(`[audio init] fallback also failed for track ${i+1}:`, e2);
+      }
+    }
+
+    // Debug: visa fel på audioelementet
+    audio.addEventListener('error', (ev) => {
+      console.warn(`[audio init] AUDIO ERROR track ${i+1}`, ev, 'src=', audio.src);
+    });
+    // Optional: logga när audio blir playable
+    audio.addEventListener('canplay', ()=> console.log(`[audio init] canplay track ${i+1}`));
+    audio.addEventListener('loadedmetadata', ()=> console.log(`[audio init] loadedmetadata track ${i+1} duration:`, audio.duration));
   }
 }
+
 initAudioSources();
 
 /* ============================
