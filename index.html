@@ -3,32 +3,39 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>The Audio Cube — Reader Pad prototype</title>
+<title>The Audio Cube — SVG Player</title>
 <style>
-  :root{ --bg:#0a0f14; --card:#0f1720; --muted:#9fb6c7; }
-  html,body{height:100%; margin:0; background:linear-gradient(180deg,#08141a,#041016); color:#e6eef8; font-family:Inter,system-ui, -apple-system, "Segoe UI", Roboto, Arial;}
-  .wrap{ max-width:1200px; margin:28px auto; display:grid; grid-template-columns: 1fr 360px; gap:20px; }
-  .panel{ background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); padding:16px; border-radius:12px; box-shadow:0 10px 30px rgba(2,6,23,0.6); border:1px solid rgba(255,255,255,0.03); }
-  .svg-wrap{ height:720px; display:flex; align-items:center; justify-content:center; position:relative; overflow:hidden; }
-  /* draggable cassette style (floating over svg) */
+  :root{ --bg:#071017; --card:#0f1720; --muted:#9fb6c7; }
+  html,body{height:100%; margin:0; background:linear-gradient(180deg,#08141a,#041016); color:#e6eef8; font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial;}
+  .wrap{ max-width:1240px; margin:24px auto; display:grid; grid-template-columns: 1fr 360px; gap:20px; padding:0 18px; box-sizing:border-box; }
+  .panel{ background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); padding:14px; border-radius:12px; box-shadow:0 12px 34px rgba(2,6,23,0.6); border:1px solid rgba(255,255,255,0.03); }
+  .svg-wrap{ height:880px; display:flex; align-items:center; justify-content:center; position:relative; overflow:hidden; }
+  /* cassette element — absolute DOM that contains the small svg */
   .cassette{
-    position:absolute; width:140px; height:72px; border-radius:10px; background:linear-gradient(180deg,#11171b,#0b1114);
-    box-shadow: 0 18px 40px rgba(0,0,0,0.6); border:1px solid rgba(255,255,255,0.04); color:#fff; cursor:grab; display:flex; flex-direction:column; justify-content:center; align-items:center;
-    user-select:none; touch-action:none; z-index:30;
+    position:absolute;
+    width:220px; height:197px;
+    pointer-events:auto;
+    z-index:40;
+    touch-action:none;
+    user-select:none;
+    cursor:grab;
+    transition:box-shadow .12s, transform .12s;
   }
-  .cassette.dragging{ cursor:grabbing; transform:scale(1.02); }
-  .cassette .label{ font-weight:700; letter-spacing:0.6px; margin-bottom:6px; }
-  .cassette .status{ font-size:12px; color:#9fb6c7; }
-  /* loading badge */
-  .loading-badge{ position:absolute; left:18px; top:18px; background:rgba(0,0,0,0.5); padding:8px 10px; border-radius:8px; display:flex; gap:8px; align-items:center; }
+  .cassette.dragging{ cursor:grabbing; transform:scale(1.02); box-shadow:0 34px 80px rgba(0,0,0,0.7); }
+  .cassette svg{ width:100%; height:100%; display:block; }
+  .cassette .meta{
+    position:absolute; left:12px; top:10px; color:#666; font-size:13px; font-weight:700; pointer-events:none;
+  }
+  .loading-badge{ position:absolute; left:18px; top:18px; background:rgba(0,0,0,0.5); padding:8px 10px; border-radius:8px; display:flex; gap:8px; align-items:center; z-index:60; color:var(--muted); }
   .loader{ width:12px; height:12px; border-radius:50%; border:2px solid rgba(255,255,255,0.18); border-top-color:#fff; animation:spin .9s linear infinite; }
   @keyframes spin{ to{ transform:rotate(360deg);} }
-  /* controls */
-  .controls{ display:flex; flex-direction:column; gap:10px; }
+  /* Controls column */
+  .controls{ display:flex; flex-direction:column; gap:12px; }
   .controls label{ font-size:13px; color:var(--muted); }
-  .queueView{ background:rgba(255,255,255,0.02); padding:10px; border-radius:8px; min-height:150px; color:var(--muted); font-size:13px; overflow:auto; }
-  button{ background:#1f7aef; border:0; color:white; padding:8px 10px; border-radius:8px; cursor:pointer; }
+  .queueView{ background:rgba(255,255,255,0.02); padding:10px; border-radius:8px; min-height:120px; color:var(--muted); font-size:13px; white-space:pre-wrap; }
   .small{ font-size:13px; color:var(--muted); }
+  button{ background:#1f7aef; border:0; color:white; padding:8px 10px; border-radius:8px; cursor:pointer; }
+  @media (max-width:1000px){ .wrap{ grid-template-columns:1fr; } .svg-wrap{ height:680px; } .cassette{ width:170px; height:152px; } }
 </style>
 </head>
 <body>
@@ -37,254 +44,270 @@
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
         <div>
           <h3 style="margin:0;">The Audio Cube — Reader Pad</h3>
-          <div class="small">Dra kassetter på den gråa fyrkanten. Magnetisk känsla. Lägg flera → köas. Lyft för att stoppa.</div>
+          <div class="small">Reader pad = den gråa fyrkanten i SVG. Dra kassetter fritt. Lägg flera → köas. Lyft för att stoppa.</div>
         </div>
-        <div>
-          <div class="small">BPM (visuell): <input id="bpm" type="number" value="120" min="60" max="200" style="width:70px;"></div>
-        </div>
+        <div class="small">BPM: <input id="bpm" type="number" value="120" min="40" max="240" style="width:72px;"></div>
       </div>
 
       <div class="svg-wrap" id="svgWrap">
-        <!-- Loading badge for simulated cache loads -->
-        <div class="loading-badge" id="loadingBadge" style="display:none">
-          <div class="loader"></div><div class="small">Loading track…</div>
-        </div>
+        <div class="loading-badge" id="loadingBadge" style="display:none"><div class="loader"></div><div>Loading…</div></div>
 
-        <!-- INLINE: din SVG (limmad direkt) -->
-        <!-- Jag använder Rectangle_1 som reader pad enligt din SVG -->
-        <!-- --- Start of pasted SVG --- -->
-        <svg id="userSVG" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="960" height="540" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid meet">
-  <!-- pasted content (your svg) -->
-  <!-- For brevity in chat I include it inline exactly as provided earlier -->
-  <!-- ... full SVG code goes here ... -->
+        <!-- ---------- INLINED MAIN SVG (your 746x923 SVG) ---------- -->
+        <svg id="playerSVG" xmlns="http://www.w3.org/2000/svg" width="746" height="923" viewBox="0 0 746 923" preserveAspectRatio="xMidYMid meet">
+  <defs>
+    <filter id="Rectangle_3">
+      <feOffset input="SourceAlpha"/>
+      <feGaussianBlur stdDeviation="1.5" result="blur"/>
+      <feFlood result="color"/>
+      <feComposite operator="out" in="SourceGraphic" in2="blur"/>
+      <feComposite operator="in" in="color"/>
+      <feComposite operator="in" in2="SourceGraphic"/>
+    </filter>
+    <clipPath id="clip-The_cube_digital_prototype_1">
+      <rect width="746" height="923"/>
+    </clipPath>
+  </defs>
+  <g id="The_cube_digital_prototype_1" clip-path="url(#clip-The_cube_digital_prototype_1)">
+    <g id="The_cube_reader_pad" transform="translate(-103 -64)">
+      <g id="Rectangle_4" transform="translate(837 730.146) rotate(90)" fill="#fff" stroke="#707070" stroke-width="1">
+        <rect width="233.354" height="734" rx="31" stroke="none"/>
+        <rect x="0.5" y="0.5" width="232.354" height="733" rx="30.5" fill="none"/>
+      </g>
+      <g id="Rectangle_1" transform="translate(103 64)" fill="#fff" stroke="#707070" stroke-width="1">
+        <rect width="734" height="734" rx="12" stroke="none"/>
+        <rect x="0.5" y="0.5" width="733" height="733" rx="11.5" fill="none"/>
+      </g>
+      <g data-type="innerShadowGroup">
+        <rect id="Rectangle_3-2" width="717" height="717" rx="11" transform="translate(111 73)" fill="#f7f7f7" opacity="0.997"/>
+        <g transform="matrix(1, 0, 0, 1, 103, 64)" filter="url(#Rectangle_3)">
+          <rect id="Rectangle_3-3" width="717" height="717" rx="11" transform="translate(8 9)" fill="#fff" opacity="0.997"/>
+        </g>
+      </g>
+      <g id="Ellipse_14" transform="translate(125 86)" fill="#f7f7f7" stroke="#fff" stroke-width="3">
+        <circle cx="345.5" cy="345.5" r="345.5" stroke="none"/>
+        <circle cx="345.5" cy="345.5" r="344" fill="none"/>
+      </g>
+      <g id="Ellipse_15" transform="translate(159.5 857.5)" fill="#ebebeb" stroke="#d0d0d0" stroke-width="1">
+        <circle cx="27.5" cy="27.5" r="27.5" stroke="none"/>
+        <circle cx="27.5" cy="27.5" r="27" fill="none"/>
+      </g>
+      <text id="Reader_pad" transform="translate(135 105)" fill="#707070" font-size="20" font-family="HelveticaNeue, Helvetica Neue"><tspan x="0" y="0">Reader pad</tspan></text>
+      <g id="on-button" transform="translate(166.143 864.037)">
+        <path id="Path_1" d="M8.953,6.343a16.91,16.91,0,1,0,23.915,0" transform="translate(0 2.61)" fill="none" stroke="#b9b9b9" stroke-linecap="round" stroke-width="1"/>
+        <path id="Path_2" d="M12,12.455V4" transform="translate(8.91 0)" fill="none" stroke="#b9b9b9" stroke-linecap="round" stroke-width="1"/>
+      </g>
+      <g id="sort-random" transform="translate(561.793 873.97)">
+        <path id="Path_5" d="M3,7H4.78c2.152,0,3.228,0,4.1.456A4,4,0,0,1,9.885,8.2c.688.7,1,1.734,1.615,3.8h0c.618.618.927,3.092,1.615,3.8a4,4,0,0,0,1.006.748c.872.456,1.948.456,4.1.456H21m0,0-3-3m3,3-3,3" fill="none" stroke="#222" stroke-width="1"/>
+        <path id="Path_6" d="M21.354,6.646l-3-3-.707.707L19.793,6.5H18.2c-1.056,0-1.881,0-2.55.059a4.2,4.2,0,0,0-2.889,1.3l-.056.058c.127.249.238.5.339.754q.056.141.112.291a2.553,2.553,0,0,1,.32-.4,3.5,3.5,0,0,1,.88-.655,3.544,3.544,0,0,1,1.382-.344c.62-.055,1.4-.055,2.486-.055h1.573L17.646,9.646l.707.707,3-3L21.707,7ZM10.3,16.087c-.127-.249-.238-.5-.339-.754q-.056-.141-.112-.291a2.557,2.557,0,0,1-.32.4,3.5,3.5,0,0,1-.88.655,3.544,3.544,0,0,1-1.382.344c-.62.055-1.4.055-2.486.055H3v1H4.8c1.056,0,1.881,0,2.55-.059a4.522,4.522,0,0,0,1.758-.454,4.5,4.5,0,0,0,1.131-.842Z" fill="#222" fill-rule="evenodd"/>
+      </g>
+      <g id="Group_3" transform="translate(0 129.53)">
+        <path id="Path_7" d="M686.981,884.947h17.94" transform="translate(-21.921 -129.477)" fill="none" stroke="#707070" stroke-width="1"/>
+        <path id="Path_8" d="M686.981,884.947h17.94" transform="translate(92 -129.477)" fill="none" stroke="#707070" stroke-width="1"/>
+        <path id="Path_9" d="M686.981,884.947h17.94" transform="translate(1672.898 59.519) rotate(90)" fill="none" stroke="#707070" stroke-width="1"/>
+      </g>
+    </g>
+  </g>
 </svg>
-        <!-- --- End of pasted SVG --- -->
-
-        <!-- Floating cassette DOM elements will be injected here by JS -->
+        <!-- ------------------------------------------------------------- -->
+        <!-- cassette DOMs will be injected by JS (they include the small cassette SVG) -->
       </div>
     </div>
 
     <div class="panel controls">
-      <h4 style="margin:0 0 6px 0;">Kontroll & Queue</h4>
-      <div class="controls">
-        <div><label>Volymer (per track)</label></div>
-        <div><label>Track 1</label><input id="gain1" type="range" min="0" max="1" step="0.01" value="0.9"></div>
-        <div><label>Track 2</label><input id="gain2" type="range" min="0" max="1" step="0.01" value="0.9"></div>
-        <div><label>Track 3</label><input id="gain3" type="range" min="0" max="1" step="0.01" value="0.9"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <h4 style="margin:0;">Kontroll & Queue</h4>
+        <div class="small">Volymer</div>
+      </div>
 
-        <div style="height:8px;"></div>
-        <div class="small">Spela-/kö-status</div>
+      <div class="controls">
+        <div><label>Track 1</label><input id="gain1" type="range" min="0" max="1" step="0.01" value="0.95"></div>
+        <div><label>Track 2</label><input id="gain2" type="range" min="0" max="1" step="0.01" value="0.95"></div>
+        <div><label>Track 3</label><input id="gain3" type="range" min="0" max="1" step="0.01" value="0.95"></div>
+
+        <div class="small">Spelar / kö</div>
         <div class="queueView" id="queueView">Ingen kö</div>
 
-        <div style="display:flex;gap:8px;margin-top:8px;">
+        <div style="display:flex;gap:8px;margin-top:10px;">
           <button id="stopAll">Stoppa allt</button>
           <button id="resetPositions">Återställ positioner</button>
         </div>
 
-        <div style="height:12px;"></div>
-        <div class="small">Byt audio: lägg dina filer i <code>/audio/track1.mp3</code> etc. Eller ändra URL i koden.</div>
+        <div style="height:10px;"></div>
+        <div class="small">Byt spår: ändra AUDIO_FILES-array i skriptet (sökfält nedan).</div>
       </div>
     </div>
   </div>
 
 <script>
-/* ======================
-   Audio + Interaction logic
-   - Uses reader pad = SVG element with id "Rectangle_1" (exists in your SVG)
-   - 3 cassettes (track1..3)
-   - Magnet effect: when dragging cassette near pad, it will be attracted slightly
-   - On drop inside pad: start or queue playback
-   - Lift (start drag) while playing: stops playback of that cassette
-   ====================== */
-
+/* ---------------------------
+   Konfiguration: ersätt spår här om du vill
+   --------------------------- */
 const AUDIO_FILES = [
   'https://raw.githubusercontent.com/StoneMarble303/THEAUDIOCUBE/main/audio/track1.mp3',
   'https://raw.githubusercontent.com/StoneMarble303/THEAUDIOCUBE/main/Martin%20Roth%20-%20An%20Analog%20Guy%20in%20a%20Digital%20World%20-%2001%20Escape.mp3',
   'https://raw.githubusercontent.com/StoneMarble303/THEAUDIOCUBE/main/audio/track3.mp3'
 ];
 
-// helpers to detect if the audio file exists; if not we'll fall back to simple oscillator sounds
-async function checkAudioExists(url){
-  try{
-    const r = await fetch(url, {method:'HEAD'});
-    return r.ok;
-  }catch(e){ return false; }
-}
+/* ---------------------------
+   Ljudkällor: skapa Audio-element
+   --------------------------- */
+const audioEls = AUDIO_FILES.map(url => {
+  const a = new Audio();
+  if (url) { a.src = url; a.preload = 'auto'; }
+  return a;
+});
 
-// prepare three Audio elements (can be swapped to WebAudio if advanced needed)
-const audioEls = [new Audio(), new Audio(), new Audio()];
-async function initAudioSources(){
-  for(let i=0;i<3;i++){
-    const url = AUDIO_FILES[i];
-    const ok = await checkAudioExists(url);
-    if(ok) {
-      audioEls[i].src = url;
-      audioEls[i].preload = 'auto';
-    } else {
-      // fallback: create a short generated osc-loop using WebAudio and capture to MediaStream? Simpler: silence file not found
-      audioEls[i].src = ''; // no source -> we will simulate via oscillator later if needed
-    }
-  }
-}
-initAudioSources();
-
-// state
+/* ---------------------------
+   State & DOM-referenser
+   --------------------------- */
 const svgWrap = document.getElementById('svgWrap');
-const svgEl = document.getElementById('userSVG');
-const padEl = svgEl.getElementById('Rectangle_1') || svgEl.querySelector('rect'); // fallback
+const playerSVG = document.getElementById('playerSVG');
+const padRectEl = playerSVG.getElementById('Rectangle_1'); // vår reader pad
 const loadingBadge = document.getElementById('loadingBadge');
 const queueView = document.getElementById('queueView');
 
-let cassetteState = {
-  // id => { trackIndex:0..2, el:DOM, onPad:false, playing:false, queued:false }
-};
-let playQueue = []; // array of cassette ids in queue order
+let cassetteState = {}; // id -> {trackIndex, el, onPad, cached, playing, queued}
+let playQueue = [];
 let currentPlayingId = null;
 
-// create initial cassette DOMs and initial positions
-const initialPositions = [
-  {x:40, y:120}, {x:40, y:220}, {x:40, y:320}
-];
+/* ---------------------------
+   Cassette small-SVG (visual) — använder den du skickade
+   --------------------------- */
+const CASSETTE_SVG = `
+<svg xmlns="http://www.w3.org/2000/svg" width="220" height="197" viewBox="0 0 220 197">
+  <defs><clipPath id="clip-cassette"><rect width="220" height="197"/></clipPath></defs>
+  <g clip-path="url(#clip-cassette)">
+    <g transform="translate(-935 -138)">
+      <g transform="translate(946 138)" fill="#ebebeb" stroke="#707070" stroke-width="1">
+        <circle cx="99.5" cy="99.5" r="99.5" stroke="none"/>
+        <circle cx="99.5" cy="99.5" r="99" fill="none"/>
+      </g>
+      <g transform="translate(949 141)" fill="#ebebeb" stroke="#707070" stroke-width="1">
+        <circle cx="96.5" cy="96.5" r="96.5" stroke="none"/>
+        <circle cx="96.5" cy="96.5" r="96" fill="none"/>
+      </g>
+      <g transform="translate(1036 228)" fill="#ebebeb" stroke="#707070" stroke-width="1">
+        <circle cx="9.5" cy="9.5" r="9.5" stroke="none"/>
+        <circle cx="9.5" cy="9.5" r="9" fill="none"/>
+      </g>
+      <g transform="translate(1095 167)" fill="#ebebeb" stroke="#707070" stroke-width="1">
+        <circle cx="5.5" cy="5.5" r="5.5" stroke="none"/>
+        <circle cx="5.5" cy="5.5" r="5" fill="none"/>
+      </g>
+      <text transform="translate(1017 289)" fill="#707070" font-size="20" font-family="HelveticaNeue, Helvetica Neue">Track</text>
+    </g>
+  </g>
+</svg>`;
 
-function createCassette(id, trackIndex, pos){
-  const c = document.createElement('div');
-  c.className = 'cassette';
-  c.dataset.cid = id;
-  c.dataset.track = trackIndex;
-  c.style.left = pos.x + 'px';
-  c.style.top = pos.y + 'px';
-  c.innerHTML = `<div class="label">Cassette ${trackIndex+1}</div><div class="status">idle</div>`;
-  svgWrap.appendChild(c);
-  cassetteState[id] = { trackIndex, el:c, onPad:false, playing:false, queued:false };
-  makeDraggable(c);
-}
-for(let i=0;i<3;i++){
+/* ---------------------------
+   Skapa initiala kassetter (3)
+   --------------------------- */
+const initialPositions = [{x:24,y:36},{x:24,y:260},{x:24,y:480}];
+for (let i=0;i<3;i++){
   createCassette('cass'+(i+1), i, initialPositions[i]);
 }
 
-// draggable logic with magnet effect
+/* ---------------------------
+   Funktion: skapa kassett DOM och draggable
+   --------------------------- */
+function createCassette(id, trackIndex, pos){
+  const wrapper = document.createElement('div');
+  wrapper.className = 'cassette';
+  wrapper.dataset.cid = id;
+  wrapper.dataset.track = trackIndex;
+  wrapper.style.left = pos.x + 'px';
+  wrapper.style.top  = pos.y + 'px';
+  wrapper.innerHTML = CASSETTE_SVG + `<div class="meta">Cassette ${trackIndex+1}</div>`;
+  svgWrap.appendChild(wrapper);
+  cassetteState[id] = { trackIndex, el:wrapper, onPad:false, cached:false, playing:false, queued:false };
+  makeDraggable(wrapper);
+}
+
+/* ---------------------------
+   Draggable + magnet + drop logic
+   --------------------------- */
 function makeDraggable(elem){
-  let offset = {x:0,y:0};
-  let dragging = false;
-  let pointerId = null;
+  let dragging=false, pointerId=null, offset={x:0,y:0};
   const id = elem.dataset.cid;
 
-  function getPadRect(){
-    // pad bbox in screen coords
-    const padBox = padEl.getBBox();
-    // SVG might be scaled; convert SVG coords to screen coords via getBoundingClientRect and viewBox ratio
-    const svgRect = svgEl.getBoundingClientRect();
-    const viewBox = svgEl.viewBox.baseVal;
+  function getPadRectScreen(){
+    // pad bbox in SVG coords -> convert to screen coords
+    const padBox = padRectEl.getBBox();
+    const svgRect = playerSVG.getBoundingClientRect();
+    const viewBox = playerSVG.viewBox.baseVal;
     const scaleX = svgRect.width / viewBox.width;
     const scaleY = svgRect.height / viewBox.height;
-    return {
-      left: svgRect.left + padBox.x * scaleX,
-      top: svgRect.top + padBox.y * scaleY,
-      width: padBox.width * scaleX,
-      height: padBox.height * scaleY,
-      centerX: svgRect.left + (padBox.x + padBox.width/2)*scaleX,
-      centerY: svgRect.top + (padBox.y + padBox.height/2)*scaleY
-    };
+    const left = svgRect.left + padBox.x * scaleX;
+    const top  = svgRect.top  + padBox.y * scaleY;
+    return { left, top, width: padBox.width * scaleX, height: padBox.height * scaleY, centerX:left + (padBox.x + padBox.width/2)*scaleX, centerY: top + (padBox.y + padBox.height/2)*scaleY };
   }
 
   function onPointerDown(e){
     e.preventDefault();
-    dragging = true;
+    dragging=true; pointerId = e.pointerId;
     elem.classList.add('dragging');
-    pointerId = e.pointerId;
-    const rect = elem.getBoundingClientRect();
-    offset.x = e.clientX - rect.left;
-    offset.y = e.clientY - rect.top;
-    // if cassette was playing -> stop (lifting behavior)
+    const r = elem.getBoundingClientRect();
+    offset.x = e.clientX - r.left; offset.y = e.clientY - r.top;
+    // lifting behavior: if playing -> stop
     const st = cassetteState[id];
     if (st.playing) stopCassette(id, true);
     elem.setPointerCapture(pointerId);
   }
   function onPointerMove(e){
     if(!dragging || e.pointerId !== pointerId) return;
-    // target pointer pos
     let nx = e.clientX - offset.x;
     let ny = e.clientY - offset.y;
-
-    // magnetism if near pad: compute distance from pointer to pad center
-    const pad = getPadRect();
-    const cx = pad.centerX, cy = pad.centerY;
-    const dx = (e.clientX - cx), dy = (e.clientY - cy);
+    const pad = getPadRectScreen();
+    const dx = e.clientX - pad.centerX, dy = e.clientY - pad.centerY;
     const dist = Math.sqrt(dx*dx + dy*dy);
-    const magnetRadius = Math.max(pad.width, pad.height) * 0.7; // attraction area
-    if (dist < magnetRadius) {
-      // pull a bit toward pad center — create easing offset
-      const pullStrength = 0.12 + (1 - dist/magnetRadius) * 0.22; // 0.12..0.34
-      nx = nx + (cx - e.clientX) * pullStrength;
-      ny = ny + (cy - e.clientY) * pullStrength;
-      // small subtle elevating effect (visual)
-      elem.style.transform = 'translateZ(0) scale(1.02)';
-    } else {
-      elem.style.transform = '';
-    }
-
-    // constrain to container bounds
-    const containerRect = svgWrap.getBoundingClientRect();
-    nx = Math.max(containerRect.left - 4, Math.min(nx, containerRect.right - elem.offsetWidth + 4));
-    ny = Math.max(containerRect.top - 4, Math.min(ny, containerRect.bottom - elem.offsetHeight + 4));
-
-    elem.style.left = (nx - containerRect.left) + 'px';
-    elem.style.top  = (ny - containerRect.top) + 'px';
-    // detect if currently inside pad bounds (for hover styling)
-    const cxEl = (nx + elem.offsetWidth/2) + containerRect.left;
-    const cyEl = (ny + elem.offsetHeight/2) + containerRect.top;
-    const inside = (cxEl >= pad.left && cxEl <= pad.left + pad.width && cyEl >= pad.top && cyEl <= pad.top + pad.height);
-    if (inside) {
-      elem.dataset.inside = '1';
-      elem.style.boxShadow = '0 28px 60px rgba(0,0,0,0.7), 0 0 24px rgba(30,130,210,0.08)';
-    } else {
-      elem.dataset.inside = '0';
-      elem.style.boxShadow = '0 18px 40px rgba(0,0,0,0.6)';
-    }
+    const magnetRadius = Math.max(pad.width, pad.height) * 0.75;
+    if (dist < magnetRadius){
+      const pull = 0.12 + (1 - dist/magnetRadius)*0.25;
+      nx = nx + (pad.centerX - e.clientX)*pull;
+      ny = ny + (pad.centerY - e.clientY)*pull;
+      elem.style.transform = 'scale(1.02)';
+    } else elem.style.transform = '';
+    // bounds
+    const container = svgWrap.getBoundingClientRect();
+    nx = Math.max(container.left - 6, Math.min(nx, container.right - elem.offsetWidth + 6));
+    ny = Math.max(container.top - 6, Math.min(ny, container.bottom - elem.offsetHeight + 6));
+    elem.style.left = (nx - container.left) + 'px';
+    elem.style.top  = (ny - container.top) + 'px';
+    // visual inside detection
+    const centerX = nx + elem.offsetWidth/2;
+    const centerY = ny + elem.offsetHeight/2;
+    const inside = (centerX >= pad.left && centerX <= pad.left + pad.width && centerY >= pad.top && centerY <= pad.top + pad.height);
+    if (inside) elem.style.boxShadow = '0 34px 80px rgba(0,0,0,0.7), 0 0 30px rgba(30,140,220,0.06)';
+    else elem.style.boxShadow = '0 18px 40px rgba(0,0,0,0.6)';
   }
   function onPointerUp(e){
     if(!dragging || e.pointerId !== pointerId) return;
-    dragging = false;
-    elem.classList.remove('dragging');
-    elem.releasePointerCapture(pointerId);
-    elem.style.transform = '';
-    // on drop: if center is inside pad -> place on pad and handle play/queue
+    dragging=false; elem.classList.remove('dragging'); elem.releasePointerCapture(pointerId); elem.style.transform='';
     const rect = elem.getBoundingClientRect();
-    const containerRect = svgWrap.getBoundingClientRect();
     const centerX = rect.left + rect.width/2;
     const centerY = rect.top + rect.height/2;
-    const pad = getPadRect();
+    const pad = getPadRectScreen();
     const inside = (centerX >= pad.left && centerX <= pad.left + pad.width && centerY >= pad.top && centerY <= pad.top + pad.height);
-    if (inside) {
-      // snap visually a little to nearest free spot on pad (we allow free placement but nudge inside margins)
-      const localX = Math.max(pad.left + 10, Math.min(centerX, pad.left + pad.width - 10));
-      const localY = Math.max(pad.top + 10, Math.min(centerY, pad.top + pad.height - 10));
-      // place at coords
-      elem.style.left = (localX - containerRect.left - rect.width/2) + 'px';
-      elem.style.top  = (localY - containerRect.top - rect.height/2) + 'px';
-      // mark as onPad
+    if (inside){
+      // snap a bit inside pad bounds
+      const container = svgWrap.getBoundingClientRect();
+      const snapX = Math.max(pad.left + 12, Math.min(centerX, pad.left + pad.width - 12));
+      const snapY = Math.max(pad.top + 12, Math.min(centerY, pad.top + pad.height - 12));
+      elem.style.left = (snapX - container.left - rect.width/2) + 'px';
+      elem.style.top  = (snapY - container.top - rect.height/2) + 'px';
+      // mark onPad
       cassetteState[id].onPad = true;
-      // if not cached -> simulate loading then either start or queue
-      if (!cassetteState[id].cached) {
+      if (!cassetteState[id].cached){
         showLoading(true);
-        setTimeout(()=> {
-          cassetteState[id].cached = true;
-          showLoading(false);
-          handleDropOnPad(id);
-        }, 800 + Math.random()*700);
-      } else {
-        handleDropOnPad(id);
-      }
+        setTimeout(()=>{ cassetteState[id].cached = true; showLoading(false); handleDrop(id); }, 700 + Math.random()*700);
+      } else handleDrop(id);
     } else {
-      // dropped outside pad: ensure it's off-pad state (if it was on pad, remove)
-      if (cassetteState[id].onPad) {
+      // dropped outside
+      if (cassetteState[id].onPad){
         cassetteState[id].onPad = false;
-        // remove from queue if queued
         removeFromQueue(id);
-        // if it was playing, stop
-        if (cassetteState[id].playing) {
+        if (cassetteState[id].playing){
           stopCassette(id, false);
-          // start next in queue if any
           startNextInQueue();
         }
       }
@@ -296,149 +319,105 @@ function makeDraggable(elem){
   window.addEventListener('pointerup', onPointerUp);
 }
 
-// loading badge helper
-function showLoading(vis){
-  loadingBadge.style.display = vis ? 'flex' : 'none';
+/* ---------------------------
+   Load UI helpers
+   --------------------------- */
+function showLoading(on){
+  loadingBadge.style.display = on ? 'flex' : 'none';
 }
 
-// on drop handler: start or queue
-function handleDropOnPad(cid){
+/* ---------------------------
+   Drop handling: start or queue
+   --------------------------- */
+function handleDrop(cid){
   const st = cassetteState[cid];
-  if (!st) return;
-  // if nothing playing -> start immediately
-  if (!currentPlayingId) {
+  if (!currentPlayingId){
     startCassette(cid);
   } else {
-    // already playing -> queue
-    if (!st.queued) {
+    if (!st.queued){
       st.queued = true; playQueue.push(cid); updateQueueView();
     }
   }
   updateCassetteUI(cid);
 }
 
-// start a cassette: actually play its audio
+/* ---------------------------
+   Start/stop cassette playback
+   --------------------------- */
 function startCassette(cid){
-  const st = cassetteState[cid];
-  if (!st) return;
-  const idx = st.trackIndex;
-  // if audio element source present -> play. Else just mark as playing (no sound)
-  const aud = audioEls[idx];
-  if (aud && aud.src) {
-    // stop current playing if any (we use queue semantics, so don't stop)
-    aud.currentTime = 0;
-    aud.volume = getGainForIndex(idx);
-    aud.play().catch(e=>{
-      console.warn('Audio play error', e);
-    });
-    // attach ended handler to start next in queue
-    aud.onended = ()=>{
-      // mark this cassette as not playing (but keep cached)
-      st.playing = false;
-      currentPlayingId = null;
-      // if this cassette is still onPad but was not in queue, it stays idle
-      // start next queued
-      startNextInQueue();
-      updateCassetteUI(cid);
-    };
-  } else {
-    // fallback: no audio source - simulate a timed playing (e.g. 8s)
-    const simDuration = 8000 + Math.floor(Math.random()*4000);
-    setTimeout(()=>{
-      st.playing = false;
-      currentPlayingId = null;
-      startNextInQueue();
-      updateCassetteUI(cid);
-    }, simDuration);
-  }
-  st.playing = true;
-  currentPlayingId = cid;
-  // ensure it's removed from queue if was queued
-  if (st.queued) {
-    st.queued = false;
-    playQueue = playQueue.filter(x => x !== cid);
-  }
-  updateQueueView();
-  updateCassetteUI(cid);
-}
-
-// stop cassette playback
-function stopCassette(cid, dueToLift){
   const st = cassetteState[cid]; if(!st) return;
   const idx = st.trackIndex;
   const aud = audioEls[idx];
-  if (aud && aud.src && !aud.paused) {
-    try { aud.pause(); aud.currentTime = 0; } catch(e){}
+  if (aud && aud.src){
+    // set volume from controls
+    aud.volume = getGainForIndex(idx);
+    aud.currentTime = 0;
+    aud.play().catch(e=>console.warn('play err',e));
+    aud.onended = ()=>{ st.playing=false; currentPlayingId=null; startNextInQueue(); updateCassetteUI(cid); };
+  } else {
+    // simulated duration fallback
+    setTimeout(()=>{ st.playing=false; currentPlayingId=null; startNextInQueue(); updateCassetteUI(cid); }, 8000 + Math.random()*4000);
   }
-  st.playing = false;
-  if (currentPlayingId === cid) currentPlayingId = null;
-  // if it was in queue, remove
-  if (st.queued) { st.queued = false; playQueue = playQueue.filter(x => x !== cid); }
-  updateQueueView();
-  updateCassetteUI(cid);
+  st.playing = true;
+  currentPlayingId = cid;
+  if (st.queued){ st.queued=false; playQueue = playQueue.filter(x=>x!==cid); }
+  updateQueueView(); updateCassetteUI(cid);
 }
 
-// start next in queue
+function stopCassette(cid, dueToLift){
+  const st = cassetteState[cid]; if(!st) return;
+  const idx = st.trackIndex; const aud = audioEls[idx];
+  if (aud && !aud.paused){ try{ aud.pause(); aud.currentTime=0; }catch(e){} }
+  st.playing=false; if (currentPlayingId===cid) currentPlayingId=null;
+  if (st.queued){ st.queued=false; playQueue = playQueue.filter(x=>x!==cid); }
+  updateQueueView(); updateCassetteUI(cid);
+}
+
+/* ---------------------------
+   Queue management
+   --------------------------- */
 function startNextInQueue(){
   if (currentPlayingId) return;
-  if (playQueue.length === 0) {
-    updateQueueView();
-    return;
+  while (playQueue.length){
+    const next = playQueue.shift();
+    const st = cassetteState[next];
+    if (st && st.onPad){ startCassette(next); return; }
   }
-  const nextId = playQueue.shift();
-  const st = cassetteState[nextId];
-  if (!st || !st.onPad) {
-    // skip and continue
-    return startNextInQueue();
-  }
-  startCassette(nextId);
+  updateQueueView();
 }
-
-// remove from queue
 function removeFromQueue(cid){
-  playQueue = playQueue.filter(x => x !== cid);
-  if (cassetteState[cid]) cassetteState[cid].queued = false;
+  playQueue = playQueue.filter(x=>x!==cid);
+  if (cassetteState[cid]) cassetteState[cid].queued=false;
   updateQueueView();
 }
 
-// update UI
+/* ---------------------------
+   UI updates
+   --------------------------- */
 function updateQueueView(){
-  if (currentPlayingId === null && playQueue.length === 0) {
-    queueView.textContent = 'Ingen kö';
-    return;
-  }
-  let html = '';
-  if (currentPlayingId) {
-    const st = cassetteState[currentPlayingId];
-    html += `Spelar nu: Cassette ${st.trackIndex+1}\n`;
-  }
-  if (playQueue.length) {
-    html += '\nKö:\n';
-    playQueue.forEach((cid,i)=> {
-      html += `${i+1}. Cassette ${cassetteState[cid].trackIndex+1}\n`;
-    });
-  }
-  queueView.textContent = html;
+  if (!currentPlayingId && playQueue.length===0){ queueView.textContent='Ingen kö'; return; }
+  let out='';
+  if (currentPlayingId){ out += `Spelar nu: Cassette ${cassetteState[currentPlayingId].trackIndex+1}\n`; }
+  if (playQueue.length){ out += '\nKö:\n'; playQueue.forEach((c,i)=> out += `${i+1}. Cassette ${cassetteState[c].trackIndex+1}\n`); }
+  queueView.textContent = out;
 }
 function updateCassetteUI(cid){
-  const st = cassetteState[cid];
+  const st = cassetteState[cid]; if(!st) return;
   const el = st.el;
-  const lab = el.querySelector('.status');
-  if (st.playing) lab.textContent = 'playing';
-  else if (st.queued) lab.textContent = 'queued';
-  else if (st.onPad && st.cached) lab.textContent = 'ready';
-  else if (st.onPad && !st.cached) lab.textContent = 'loading';
-  else lab.textContent = 'idle';
+  // add small overlay text by removing existing meta if present and setting color via CSS not needed
+  // we'll mark by border highlight if playing/queued
+  if (st.playing) el.style.outline = '3px solid rgba(40,200,220,0.9)';
+  else if (st.queued) el.style.outline = '2px dashed rgba(200,200,200,0.15)';
+  else if (st.onPad && st.cached) el.style.outline = '1px solid rgba(255,255,255,0.03)';
+  else el.style.outline = 'none';
 }
 
-// gain controls
-function getGainForIndex(i){
-  const el = document.getElementById('gain'+(i+1));
-  return el ? parseFloat(el.value) : 0.9;
-}
+/* ---------------------------
+   Volume controls
+   --------------------------- */
+function getGainForIndex(i){ const el = document.getElementById('gain'+(i+1)); return el ? parseFloat(el.value) : 0.9; }
 ['gain1','gain2','gain3'].forEach(id=>{
   document.getElementById(id).addEventListener('input', ()=>{
-    // if audio element playing, update its volume
     for (let k in cassetteState){
       const st = cassetteState[k];
       if (st && st.playing){
@@ -449,38 +428,33 @@ function getGainForIndex(i){
   });
 });
 
-// stop all button
+/* ---------------------------
+   Stop all & reset UI
+   --------------------------- */
 document.getElementById('stopAll').addEventListener('click', ()=>{
-  // stop audio
-  for (let i=0;i<audioEls.length;i++){
-    try { audioEls[i].pause(); audioEls[i].currentTime = 0; } catch(e){}
-  }
-  // reset states
-  Object.keys(cassetteState).forEach(k=>{
-    const st = cassetteState[k]; st.playing=false; st.queued=false; st.onPad=false;
-    updateCassetteUI(k);
-  });
-  currentPlayingId = null; playQueue = []; updateQueueView();
+  for (let a of audioEls){ try{ a.pause(); a.currentTime=0; }catch(e){} }
+  Object.keys(cassetteState).forEach(k => { const s=cassetteState[k]; s.playing=false; s.queued=false; s.onPad=false; updateCassetteUI(k); });
+  currentPlayingId=null; playQueue=[]; updateQueueView();
 });
 
-// reset positions
 document.getElementById('resetPositions').addEventListener('click', ()=>{
   const keys = Object.keys(cassetteState);
-  for(let i=0;i<keys.length;i++){
+  for (let i=0;i<keys.length;i++){
     const k = keys[i];
-    const pos = {x:40, y:120 + i*110};
-    cassetteState[k].el.style.left = pos.x + 'px';
-    cassetteState[k].el.style.top  = pos.y + 'px';
+    cassetteState[k].el.style.left = initialPositions[i].x + 'px';
+    cassetteState[k].el.style.top  = initialPositions[i].y + 'px';
   }
+  // also stop audio
+  document.getElementById('stopAll').click();
 });
 
-// initial UI refresh
-Object.keys(cassetteState).forEach(k => updateCassetteUI(k));
+/* ---------------------------
+   Initial UI refresh
+   --------------------------- */
+Object.keys(cassetteState).forEach(k=>updateCassetteUI(k));
 updateQueueView();
 
-// helper: allow replacing AUDIO_FILES easily - show instructions in console
-console.log('Prototyp laddad. För att använda egna spår: lägg filerna i /audio/track1.mp3 etc eller ändra AUDIO_FILES array och uppdatera sidan.');
-
+console.log('Player ready. Lägg in egna filer i AUDIO_FILES om du vill.');
 </script>
 </body>
 </html>
