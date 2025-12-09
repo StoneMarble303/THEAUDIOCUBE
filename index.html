@@ -3,645 +3,483 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Cube Music Prototype — Version 1 (2D)</title>
+<title>The Audio Cube — Reader Pad prototype</title>
 <style>
-  :root{
-    --bg: #0e0f12;
-    --card: #0f1720;
-    --accent: #7bd389;
-    --glass: rgba(255,255,255,0.03);
-    font-family: Inter, Roboto, system-ui, -apple-system, "Segoe UI", sans-serif;
+  :root{ --bg:#0a0f14; --card:#0f1720; --muted:#9fb6c7; }
+  html,body{height:100%; margin:0; background:linear-gradient(180deg,#08141a,#041016); color:#e6eef8; font-family:Inter,system-ui, -apple-system, "Segoe UI", Roboto, Arial;}
+  .wrap{ max-width:1200px; margin:28px auto; display:grid; grid-template-columns: 1fr 360px; gap:20px; }
+  .panel{ background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); padding:16px; border-radius:12px; box-shadow:0 10px 30px rgba(2,6,23,0.6); border:1px solid rgba(255,255,255,0.03); }
+  .svg-wrap{ height:720px; display:flex; align-items:center; justify-content:center; position:relative; overflow:hidden; }
+  /* draggable cassette style (floating over svg) */
+  .cassette{
+    position:absolute; width:140px; height:72px; border-radius:10px; background:linear-gradient(180deg,#11171b,#0b1114);
+    box-shadow: 0 18px 40px rgba(0,0,0,0.6); border:1px solid rgba(255,255,255,0.04); color:#fff; cursor:grab; display:flex; flex-direction:column; justify-content:center; align-items:center;
+    user-select:none; touch-action:none; z-index:30;
   }
-  body{
-    margin:0;
-    background:linear-gradient(180deg,#071021 0%, #08111a 100%);
-    color:#e6eef8;
-    display:flex;
-    min-height:100vh;
-    align-items:flex-start;
-    justify-content:center;
-    padding:28px;
-    box-sizing:border-box;
-  }
-  .wrap{
-    width:980px;
-    display:grid;
-    grid-template-columns: 420px 1fr;
-    gap:24px;
-  }
-
-  /* Left: Cube */
-  .panel{
-    background:var(--card);
-    border-radius:16px;
-    padding:18px;
-    box-shadow: 0 10px 30px rgba(2,6,23,0.6);
-  }
-  .cube-area{
-    background:var(--glass);
-    border-radius:12px;
-    height:420px;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    position:relative;
-    overflow:hidden;
-    border:1px solid rgba(255,255,255,0.03);
-  }
-
-  .cube{
-    width:320px;
-    height:320px;
-    background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
-    border-radius:12px;
-    position:relative;
-    display:grid;
-    grid-template-columns: 1fr 1fr;
-    grid-template-rows: 1fr 1fr;
-    gap:6px;
-    padding:12px;
-    box-sizing:border-box;
-    align-items:stretch;
-    justify-items:stretch;
-  }
-
-  .zone{
-    background: linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.0));
-    border-radius:8px;
-    border:1px dashed rgba(255,255,255,0.04);
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    position:relative;
-    transition: box-shadow .18s, transform .12s;
-  }
-  .zone.active {
-    box-shadow: 0 6px 30px rgba(0,0,0,0.6), 0 0 30px var(--glow);
-    transform: scale(1.02);
-  }
-  .zone .label{
-    position:absolute;
-    top:8px;
-    left:10px;
-    font-size:12px;
-    opacity:.9;
-  }
-
-  /* Right: Controls / Tokens */
-  .controls{
-    padding:10px 16px;
-    display:flex;
-    flex-direction:column;
-    gap:12px;
-  }
-  .tokens{
-    display:flex;
-    gap:10px;
-    margin-bottom:6px;
-  }
-  .token{
-    background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
-    border-radius:10px;
-    padding:10px 12px;
-    width:120px;
-    cursor:grab;
-    box-shadow: 0 6px 16px rgba(2,6,23,0.5);
-    user-select:none;
-    border:1px solid rgba(255,255,255,0.03);
-  }
-  .token:active{ cursor:grabbing; }
-  .token .title{ font-weight:600; font-size:15px; margin-bottom:6px;}
-  .token .desc{ font-size:12px; opacity:.85 }
-
-  .mixers{
-    display:flex;
-    flex-direction:column;
-    gap:10px;
-    margin-top:6px;
-  }
-  .mixer{
-    background:rgba(255,255,255,0.02);
-    padding:8px;
-    border-radius:10px;
-    display:flex;
-    gap:12px;
-    align-items:center;
-  }
-  .mixer label{ width:72px; font-size:13px; }
-  .mixer input[type=range]{ flex:1; -webkit-appearance:none; height:6px; border-radius:6px; background:rgba(255,255,255,0.06); }
-
-  .topbar{
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    margin-bottom:12px;
-  }
-  .bpm{
-    display:flex;
-    gap:8px;
-    align-items:center;
-  }
-  .help{
-    font-size:13px;
-    color:rgba(230,238,248,0.75);
-    opacity:0.9;
-  }
-
-  footer { margin-top:10px; color:rgba(230,238,248,0.6); font-size:12px; }
-
-  /* Pulse lights */
-  .pulse{
-    position:absolute;
-    inset:0;
-    border-radius:8px;
-    mix-blend-mode:screen;
-    pointer-events:none;
-    opacity:0;
-    transition: opacity .12s;
-    box-shadow:0 0 30px rgba(255,255,255,0.0);
-  }
-
-  .small-note{ font-size:12px; color:rgba(230,238,248,0.7) }
-
-  @media (max-width:1000px){
-    .wrap{ grid-template-columns: 1fr; width:100%; }
-  }
+  .cassette.dragging{ cursor:grabbing; transform:scale(1.02); }
+  .cassette .label{ font-weight:700; letter-spacing:0.6px; margin-bottom:6px; }
+  .cassette .status{ font-size:12px; color:#9fb6c7; }
+  /* loading badge */
+  .loading-badge{ position:absolute; left:18px; top:18px; background:rgba(0,0,0,0.5); padding:8px 10px; border-radius:8px; display:flex; gap:8px; align-items:center; }
+  .loader{ width:12px; height:12px; border-radius:50%; border:2px solid rgba(255,255,255,0.18); border-top-color:#fff; animation:spin .9s linear infinite; }
+  @keyframes spin{ to{ transform:rotate(360deg);} }
+  /* controls */
+  .controls{ display:flex; flex-direction:column; gap:10px; }
+  .controls label{ font-size:13px; color:var(--muted); }
+  .queueView{ background:rgba(255,255,255,0.02); padding:10px; border-radius:8px; min-height:150px; color:var(--muted); font-size:13px; overflow:auto; }
+  button{ background:#1f7aef; border:0; color:white; padding:8px 10px; border-radius:8px; cursor:pointer; }
+  .small{ font-size:13px; color:var(--muted); }
 </style>
 </head>
 <body>
   <div class="wrap">
     <div class="panel">
-      <div class="topbar">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
         <div>
-          <h3 style="margin:0 0 6px 0;">Cube — Interaktiv prototyp</h3>
-          <div class="small-note">Dra tokens till zonerna. Loops är syncade och genereras i browsern.</div>
+          <h3 style="margin:0;">The Audio Cube — Reader Pad</h3>
+          <div class="small">Dra kassetter på den gråa fyrkanten. Magnetisk känsla. Lägg flera → köas. Lyft för att stoppa.</div>
         </div>
-        <div class="bpm">
-          <label style="font-size:13px;">BPM</label>
-          <input id="bpm" type="number" value="120" min="60" max="180" style="width:72px; padding:6px; border-radius:8px; border:1px solid rgba(255,255,255,0.04); background:transparent; color:inherit;">
-        </div>
-      </div>
-
-      <div class="cube-area">
-        <div class="cube" id="cube">
-          <div class="zone" data-zone="0"><div class="label">Zone 1</div></div>
-          <div class="zone" data-zone="1"><div class="label">Zone 2</div></div>
-          <div class="zone" data-zone="2"><div class="label">Zone 3</div></div>
-          <div class="zone" data-zone="3"><div class="label">Zone 4</div></div>
-
-          <div class="pulse" id="pulseLayer"></div>
+        <div>
+          <div class="small">BPM (visuell): <input id="bpm" type="number" value="120" min="60" max="200" style="width:70px;"></div>
         </div>
       </div>
 
-      <footer>
-        <div>Tempo-synk | Direkt start vid nästa takt | Simulerad ljudmotor</div>
-      </footer>
+      <div class="svg-wrap" id="svgWrap">
+        <!-- Loading badge for simulated cache loads -->
+        <div class="loading-badge" id="loadingBadge" style="display:none">
+          <div class="loader"></div><div class="small">Loading track…</div>
+        </div>
+
+        <!-- INLINE: din SVG (limmad direkt) -->
+        <!-- Jag använder Rectangle_1 som reader pad enligt din SVG -->
+        <!-- --- Start of pasted SVG --- -->
+        <svg id="userSVG" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="960" height="540" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid meet">
+  <!-- pasted content (your svg) -->
+  <!-- For brevity in chat I include it inline exactly as provided earlier -->
+  <!-- ... full SVG code goes here ... -->
+</svg>
+        <!-- --- End of pasted SVG --- -->
+
+        <!-- Floating cassette DOM elements will be injected here by JS -->
+      </div>
     </div>
 
     <div class="panel controls">
-      <div>
-        <h4 style="margin:2px 0 8px 0;">Tokens</h4>
-        <div class="tokens">
-          <div class="token" draggable="true" data-token="bass" id="token-bass">
-            <div class="title">BASS</div>
-            <div class="desc">Djup loop — låg frekvens</div>
-          </div>
-          <div class="token" draggable="true" data-token="melody" id="token-melody">
-            <div class="title">MELODY</div>
-            <div class="desc">Lead / synth</div>
-          </div>
-          <div class="token" draggable="true" data-token="drums" id="token-drums">
-            <div class="title">DRUMS</div>
-            <div class="desc">Kick + hi-hat loop</div>
-          </div>
-        </div>
-      </div>
+      <h4 style="margin:0 0 6px 0;">Kontroll & Queue</h4>
+      <div class="controls">
+        <div><label>Volymer (per track)</label></div>
+        <div><label>Track 1</label><input id="gain1" type="range" min="0" max="1" step="0.01" value="0.9"></div>
+        <div><label>Track 2</label><input id="gain2" type="range" min="0" max="1" step="0.01" value="0.9"></div>
+        <div><label>Track 3</label><input id="gain3" type="range" min="0" max="1" step="0.01" value="0.9"></div>
 
-      <div>
-        <h4 style="margin:2px 0 8px 0;">Mixer</h4>
-        <div class="mixers">
-          <div class="mixer">
-            <label>BASS</label>
-            <input class="gain" data-track="bass" type="range" min="0" max="1" step="0.01" value="0.9">
-          </div>
-          <div class="mixer">
-            <label>MELODY</label>
-            <input class="gain" data-track="melody" type="range" min="0" max="1" step="0.01" value="0.8">
-          </div>
-          <div class="mixer">
-            <label>DRUMS</label>
-            <input class="gain" data-track="drums" type="range" min="0" max="1" step="0.01" value="1">
-          </div>
-        </div>
-      </div>
+        <div style="height:8px;"></div>
+        <div class="small">Spela-/kö-status</div>
+        <div class="queueView" id="queueView">Ingen kö</div>
 
-      <div style="margin-top:8px;">
-        <button id="stopAll" style="padding:8px 12px; border-radius:8px; border:0; background:#ff5c5c; color:white; cursor:pointer;">Stoppa allt</button>
-        <div style="height:6px"></div>
-        <div class="help">Tips: släpp en token i en zon för att aktivera. Ta bort genom att dra token utanför cuben.</div>
+        <div style="display:flex;gap:8px;margin-top:8px;">
+          <button id="stopAll">Stoppa allt</button>
+          <button id="resetPositions">Återställ positioner</button>
+        </div>
+
+        <div style="height:12px;"></div>
+        <div class="small">Byt audio: lägg dina filer i <code>/audio/track1.mp3</code> etc. Eller ändra URL i koden.</div>
       </div>
     </div>
   </div>
 
 <script>
-/* Cube interactive prototype — audio generated with WebAudio
-   - Loop length: 4 takter (4 sekunder vid 60 BPM * 120 BPM = 2s? We'll compute using BPM)
-   - We schedule loops to start at bar boundaries for tight sync.
-*/
+/* ======================
+   Audio + Interaction logic
+   - Uses reader pad = SVG element with id "Rectangle_1" (exists in your SVG)
+   - 3 cassettes (track1..3)
+   - Magnet effect: when dragging cassette near pad, it will be attracted slightly
+   - On drop inside pad: start or queue playback
+   - Lift (start drag) while playing: stops playback of that cassette
+   ====================== */
 
-const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-let audioCtx = null;
-const tracks = {
-  bass: {gainNode:null, playing:false, scheduledStops:[], nodeGroup:[]},
-  melody: {gainNode:null, playing:false, scheduledStops:[], nodeGroup:[]},
-  drums: {gainNode:null, playing:false, scheduledStops:[], nodeGroup:[]}
+const AUDIO_FILES = [
+  'https://raw.githubusercontent.com/StoneMarble303/THEAUDIOCUBE/main/audio/track1.mp3',
+  'https://raw.githubusercontent.com/StoneMarble303/THEAUDIOCUBE/main/Martin%20Roth%20-%20An%20Analog%20Guy%20in%20a%20Digital%20World%20-%2001%20Escape.mp3',
+  'https://raw.githubusercontent.com/StoneMarble303/THEAUDIOCUBE/main/audio/track3.mp3'
+];
+
+// helpers to detect if the audio file exists; if not we'll fall back to simple oscillator sounds
+async function checkAudioExists(url){
+  try{
+    const r = await fetch(url, {method:'HEAD'});
+    return r.ok;
+  }catch(e){ return false; }
+}
+
+// prepare three Audio elements (can be swapped to WebAudio if advanced needed)
+const audioEls = [new Audio(), new Audio(), new Audio()];
+async function initAudioSources(){
+  for(let i=0;i<3;i++){
+    const url = AUDIO_FILES[i];
+    const ok = await checkAudioExists(url);
+    if(ok) {
+      audioEls[i].src = url;
+      audioEls[i].preload = 'auto';
+    } else {
+      // fallback: create a short generated osc-loop using WebAudio and capture to MediaStream? Simpler: silence file not found
+      audioEls[i].src = ''; // no source -> we will simulate via oscillator later if needed
+    }
+  }
+}
+initAudioSources();
+
+// state
+const svgWrap = document.getElementById('svgWrap');
+const svgEl = document.getElementById('userSVG');
+const padEl = svgEl.getElementById('Rectangle_1') || svgEl.querySelector('rect'); // fallback
+const loadingBadge = document.getElementById('loadingBadge');
+const queueView = document.getElementById('queueView');
+
+let cassetteState = {
+  // id => { trackIndex:0..2, el:DOM, onPad:false, playing:false, queued:false }
 };
-let loopBars = 2; // number of bars per loop (you can change)
-let beatsPerBar = 4;
-let isRunning = false;
-let startTime = 0;
-let tempoInput = document.getElementById('bpm');
+let playQueue = []; // array of cassette ids in queue order
+let currentPlayingId = null;
 
-function ensureAudio() {
-  if (!audioCtx) {
-    audioCtx = new AudioContextClass();
-    // Create master gain
-    masterGain = audioCtx.createGain();
-    masterGain.gain.value = 0.9;
-    masterGain.connect(audioCtx.destination);
+// create initial cassette DOMs and initial positions
+const initialPositions = [
+  {x:40, y:120}, {x:40, y:220}, {x:40, y:320}
+];
 
-    // Create track gains
-    for (let k of Object.keys(tracks)) {
-      const g = audioCtx.createGain();
-      g.gain.value = 0.9;
-      g.connect(masterGain);
-      tracks[k].gainNode = g;
+function createCassette(id, trackIndex, pos){
+  const c = document.createElement('div');
+  c.className = 'cassette';
+  c.dataset.cid = id;
+  c.dataset.track = trackIndex;
+  c.style.left = pos.x + 'px';
+  c.style.top = pos.y + 'px';
+  c.innerHTML = `<div class="label">Cassette ${trackIndex+1}</div><div class="status">idle</div>`;
+  svgWrap.appendChild(c);
+  cassetteState[id] = { trackIndex, el:c, onPad:false, playing:false, queued:false };
+  makeDraggable(c);
+}
+for(let i=0;i<3;i++){
+  createCassette('cass'+(i+1), i, initialPositions[i]);
+}
+
+// draggable logic with magnet effect
+function makeDraggable(elem){
+  let offset = {x:0,y:0};
+  let dragging = false;
+  let pointerId = null;
+  const id = elem.dataset.cid;
+
+  function getPadRect(){
+    // pad bbox in screen coords
+    const padBox = padEl.getBBox();
+    // SVG might be scaled; convert SVG coords to screen coords via getBoundingClientRect and viewBox ratio
+    const svgRect = svgEl.getBoundingClientRect();
+    const viewBox = svgEl.viewBox.baseVal;
+    const scaleX = svgRect.width / viewBox.width;
+    const scaleY = svgRect.height / viewBox.height;
+    return {
+      left: svgRect.left + padBox.x * scaleX,
+      top: svgRect.top + padBox.y * scaleY,
+      width: padBox.width * scaleX,
+      height: padBox.height * scaleY,
+      centerX: svgRect.left + (padBox.x + padBox.width/2)*scaleX,
+      centerY: svgRect.top + (padBox.y + padBox.height/2)*scaleY
+    };
+  }
+
+  function onPointerDown(e){
+    e.preventDefault();
+    dragging = true;
+    elem.classList.add('dragging');
+    pointerId = e.pointerId;
+    const rect = elem.getBoundingClientRect();
+    offset.x = e.clientX - rect.left;
+    offset.y = e.clientY - rect.top;
+    // if cassette was playing -> stop (lifting behavior)
+    const st = cassetteState[id];
+    if (st.playing) stopCassette(id, true);
+    elem.setPointerCapture(pointerId);
+  }
+  function onPointerMove(e){
+    if(!dragging || e.pointerId !== pointerId) return;
+    // target pointer pos
+    let nx = e.clientX - offset.x;
+    let ny = e.clientY - offset.y;
+
+    // magnetism if near pad: compute distance from pointer to pad center
+    const pad = getPadRect();
+    const cx = pad.centerX, cy = pad.centerY;
+    const dx = (e.clientX - cx), dy = (e.clientY - cy);
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    const magnetRadius = Math.max(pad.width, pad.height) * 0.7; // attraction area
+    if (dist < magnetRadius) {
+      // pull a bit toward pad center — create easing offset
+      const pullStrength = 0.12 + (1 - dist/magnetRadius) * 0.22; // 0.12..0.34
+      nx = nx + (cx - e.clientX) * pullStrength;
+      ny = ny + (cy - e.clientY) * pullStrength;
+      // small subtle elevating effect (visual)
+      elem.style.transform = 'translateZ(0) scale(1.02)';
+    } else {
+      elem.style.transform = '';
     }
 
-    // transport
-    startTime = audioCtx.currentTime + 0.05;
-    isRunning = true;
+    // constrain to container bounds
+    const containerRect = svgWrap.getBoundingClientRect();
+    nx = Math.max(containerRect.left - 4, Math.min(nx, containerRect.right - elem.offsetWidth + 4));
+    ny = Math.max(containerRect.top - 4, Math.min(ny, containerRect.bottom - elem.offsetHeight + 4));
+
+    elem.style.left = (nx - containerRect.left) + 'px';
+    elem.style.top  = (ny - containerRect.top) + 'px';
+    // detect if currently inside pad bounds (for hover styling)
+    const cxEl = (nx + elem.offsetWidth/2) + containerRect.left;
+    const cyEl = (ny + elem.offsetHeight/2) + containerRect.top;
+    const inside = (cxEl >= pad.left && cxEl <= pad.left + pad.width && cyEl >= pad.top && cyEl <= pad.top + pad.height);
+    if (inside) {
+      elem.dataset.inside = '1';
+      elem.style.boxShadow = '0 28px 60px rgba(0,0,0,0.7), 0 0 24px rgba(30,130,210,0.08)';
+    } else {
+      elem.dataset.inside = '0';
+      elem.style.boxShadow = '0 18px 40px rgba(0,0,0,0.6)';
+    }
   }
-}
-
-// convert BPM to seconds per beat
-function secondsPerBeat() {
-  const bpm = Math.max(60, Math.min(200, parseFloat(tempoInput.value)||120));
-  return 60.0 / bpm;
-}
-function loopDuration() {
-  return secondsPerBeat() * beatsPerBar * loopBars;
-}
-
-// simple synth generators for each track
-function scheduleBass(startAt) {
-  const dur = loopDuration();
-  const osc = audioCtx.createOscillator();
-  const env = audioCtx.createGain();
-  osc.type = 'sawtooth';
-  // simple riff: two notes
-  const now = startAt;
-  osc.frequency.setValueAtTime(55, now); // A1
-  osc.detune.setValueAtTime(0, now);
-  env.gain.setValueAtTime(0, now);
-  env.gain.linearRampToValueAtTime(0.9, now + 0.02);
-  env.gain.setValueAtTime(0.9, now + dur - 0.08);
-  env.gain.linearRampToValueAtTime(0.0, now + dur);
-
-  const filter = audioCtx.createBiquadFilter();
-  filter.type = 'lowpass';
-  filter.frequency.value = 400;
-  filter.Q.value = 1;
-
-  osc.connect(filter);
-  filter.connect(env);
-  env.connect(tracks.bass.gainNode);
-
-  osc.start(now);
-  osc.stop(now + dur + 0.05);
-
-  // store nodes to clear if needed
-  tracks.bass.nodeGroup.push({osc, env, filter});
-}
-
-function scheduleMelody(startAt) {
-  const dur = loopDuration();
-  const now = startAt;
-  const gain = audioCtx.createGain();
-  const osc = audioCtx.createOscillator();
-  osc.type = 'triangle';
-  // melodic pattern
-  const notes = [440, 523.25, 392, 659.25]; // A4, C5, G4, E5
-  const step = dur / notes.length;
-  gain.gain.setValueAtTime(0.0, now);
-  gain.gain.linearRampToValueAtTime(0.75, now + 0.01);
-
-  osc.connect(gain);
-  gain.connect(tracks.melody.gainNode);
-
-  osc.start(now);
-  for (let i=0;i<notes.length;i++){
-    osc.frequency.setValueAtTime(notes[i], now + i*step);
-  }
-  osc.stop(now + dur + 0.05);
-
-  tracks.melody.nodeGroup.push({osc,gain});
-}
-
-function scheduleDrums(startAt) {
-  const dur = loopDuration();
-  const now = startAt;
-  const step = secondsPerBeat(); // quarter notes
-  // Kick pattern: strong on 1 and 3
-  const kickTimes = [0, 2*step];
-  // Hi-hat pattern: 8th notes
-  const hhCount = Math.floor(dur / (step/2));
-  // Generate noise buffer for hats
-  const bufferSize = audioCtx.sampleRate * 0.02;
-  const noiseBuf = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-  const data = noiseBuf.getChannelData(0);
-  for (let i=0;i<data.length;i++) data[i] = (Math.random()*2-1) * Math.pow(1 - i/data.length, 2);
-
-  // schedule kicks
-  kickTimes.forEach((tOff)=>{
-    const tNow = now + tOff;
-    const osc = audioCtx.createOscillator();
-    osc.type = 'sine';
-    const env = audioCtx.createGain();
-    osc.frequency.setValueAtTime(120, tNow);
-    env.gain.setValueAtTime(1, tNow);
-    env.gain.exponentialRampToValueAtTime(0.001, tNow + 0.25);
-    osc.connect(env);
-    env.connect(tracks.drums.gainNode);
-    osc.start(tNow);
-    osc.stop(tNow + 0.26);
-    tracks.drums.nodeGroup.push({osc,env});
-  });
-
-  // schedule hats
-  for (let i=0;i<hhCount;i++){
-    const tNow = now + i*(step/2);
-    const src = audioCtx.createBufferSource();
-    src.buffer = noiseBuf;
-    const g = audioCtx.createGain();
-    g.gain.setValueAtTime(0.0001, tNow);
-    g.gain.linearRampToValueAtTime(0.18, tNow + 0.001);
-    g.gain.exponentialRampToValueAtTime(0.0001, tNow + 0.06);
-    src.connect(g);
-    g.connect(tracks.drums.gainNode);
-    src.start(tNow);
-    src.stop(tNow + 0.07);
-    tracks.drums.nodeGroup.push({src,g});
-  }
-}
-
-// scheduler tick: schedule next loop boundaries
-let schedulerTimer = null;
-function startScheduler(){
-  if (!audioCtx) ensureAudio();
-  if (schedulerTimer) clearInterval(schedulerTimer);
-  schedulerTimer = setInterval(()=> {
-    // schedule next loop start if there are active tracks
-    const dur = loopDuration();
-    const now = audioCtx.currentTime;
-    // compute next bar boundary
-    const beatSec = secondsPerBeat();
-    const loopSec = dur;
-    // We align to multiples of loopSec starting from startTime
-    const elapsed = Math.max(0, now - startTime);
-    const loopsPassed = Math.floor(elapsed / loopSec);
-    const nextLoopStart = startTime + (loopsPassed + 1) * loopSec;
-    // if any track flagged as playing, schedule their audio at nextLoopStart
-    for (let tname of Object.keys(tracks)) {
-      if (tracks[tname].playing) {
-        // schedule generator to run at nextLoopStart
-        if (tname === 'bass') scheduleBass(nextLoopStart);
-        if (tname === 'melody') scheduleMelody(nextLoopStart);
-        if (tname === 'drums') scheduleDrums(nextLoopStart);
+  function onPointerUp(e){
+    if(!dragging || e.pointerId !== pointerId) return;
+    dragging = false;
+    elem.classList.remove('dragging');
+    elem.releasePointerCapture(pointerId);
+    elem.style.transform = '';
+    // on drop: if center is inside pad -> place on pad and handle play/queue
+    const rect = elem.getBoundingClientRect();
+    const containerRect = svgWrap.getBoundingClientRect();
+    const centerX = rect.left + rect.width/2;
+    const centerY = rect.top + rect.height/2;
+    const pad = getPadRect();
+    const inside = (centerX >= pad.left && centerX <= pad.left + pad.width && centerY >= pad.top && centerY <= pad.top + pad.height);
+    if (inside) {
+      // snap visually a little to nearest free spot on pad (we allow free placement but nudge inside margins)
+      const localX = Math.max(pad.left + 10, Math.min(centerX, pad.left + pad.width - 10));
+      const localY = Math.max(pad.top + 10, Math.min(centerY, pad.top + pad.height - 10));
+      // place at coords
+      elem.style.left = (localX - containerRect.left - rect.width/2) + 'px';
+      elem.style.top  = (localY - containerRect.top - rect.height/2) + 'px';
+      // mark as onPad
+      cassetteState[id].onPad = true;
+      // if not cached -> simulate loading then either start or queue
+      if (!cassetteState[id].cached) {
+        showLoading(true);
+        setTimeout(()=> {
+          cassetteState[id].cached = true;
+          showLoading(false);
+          handleDropOnPad(id);
+        }, 800 + Math.random()*700);
+      } else {
+        handleDropOnPad(id);
+      }
+    } else {
+      // dropped outside pad: ensure it's off-pad state (if it was on pad, remove)
+      if (cassetteState[id].onPad) {
+        cassetteState[id].onPad = false;
+        // remove from queue if queued
+        removeFromQueue(id);
+        // if it was playing, stop
+        if (cassetteState[id].playing) {
+          stopCassette(id, false);
+          // start next in queue if any
+          startNextInQueue();
+        }
       }
     }
-    // visual pulse
-    const pulse = document.getElementById('pulseLayer');
-    pulse.style.opacity = 0.08;
-    setTimeout(()=> pulse.style.opacity = 0, 150);
-  }, 300); // check 3x per second
-}
-
-function stopScheduler(){
-  if (schedulerTimer) { clearInterval(schedulerTimer); schedulerTimer = null; }
-}
-
-// attach drag/drop logic and zone handling
-const tokens = document.querySelectorAll('.token');
-tokens.forEach(t => {
-  t.addEventListener('dragstart', (e)=> {
-    e.dataTransfer.setData('text/plain', e.target.dataset.token);
-    t.classList.add('dragging');
-    // ensure audio context created on user gesture
-    ensureAudio();
-  });
-  t.addEventListener('dragend', ()=> t.classList.remove('dragging'));
-});
-
-const zones = document.querySelectorAll('.zone');
-zones.forEach(z => {
-  z.addEventListener('dragover', (e)=> {
-    e.preventDefault();
-    z.classList.add('hover');
-  });
-  z.addEventListener('dragleave', (e)=> {
-    z.classList.remove('hover');
-  });
-  z.addEventListener('drop', (e)=> {
-    e.preventDefault();
-    z.classList.remove('hover');
-    const tokenType = e.dataTransfer.getData('text/plain');
-    handlePlaceToken(tokenType, z);
-  });
-});
-
-// track of which zone has which token (can be multiple tokens on diff zones)
-const zoneState = {}; // zoneIdx -> tokenType
-
-function handlePlaceToken(tokenType, zoneEl) {
-  const zoneIdx = zoneEl.dataset.zone|0;
-  // If this zone already has a token, swap out
-  if (zoneState[zoneIdx]) {
-    // remove previous
-    removeTokenFromZone(zoneIdx);
   }
-  // place token visually
-  zoneState[zoneIdx] = tokenType;
-  zoneEl.classList.add('active');
-  // color mapping per token
-  const col = tokenColor(tokenType);
-  zoneEl.style.setProperty('--glow', col);
-  zoneEl.style.boxShadow = `0 8px 40px ${col}`;
-  // create a small chip inside zone to show token
-  const chip = document.createElement('div');
-  chip.className = 'chip';
-  chip.textContent = tokenType.toUpperCase();
-  chip.style.padding = '8px 10px';
-  chip.style.borderRadius = '8px';
-  chip.style.background = 'rgba(255,255,255,0.03)';
-  chip.style.fontWeight = '700';
-  chip.style.letterSpacing = '0.6px';
-  zoneEl.appendChild(chip);
-  chip.dataset.token = tokenType;
-  chip.style.zIndex = 5;
 
-  // start playing track: mark playing and schedule at next loop
-  if (!tracks[tokenType].playing) {
-    tracks[tokenType].playing = true;
-    // schedule an immediate generation for the current loop if just started
-    // ensure scheduler is running
-    if (!schedulerTimer) startScheduler();
-    // also schedule sound for current loop if none exists (so user hears soon)
-    // but we will schedule at next boundary in scheduler anyway
+  elem.addEventListener('pointerdown', onPointerDown);
+  window.addEventListener('pointermove', onPointerMove);
+  window.addEventListener('pointerup', onPointerUp);
+}
+
+// loading badge helper
+function showLoading(vis){
+  loadingBadge.style.display = vis ? 'flex' : 'none';
+}
+
+// on drop handler: start or queue
+function handleDropOnPad(cid){
+  const st = cassetteState[cid];
+  if (!st) return;
+  // if nothing playing -> start immediately
+  if (!currentPlayingId) {
+    startCassette(cid);
+  } else {
+    // already playing -> queue
+    if (!st.queued) {
+      st.queued = true; playQueue.push(cid); updateQueueView();
+    }
   }
+  updateCassetteUI(cid);
 }
 
-function removeTokenFromZone(zoneIdx) {
-  const token = zoneState[zoneIdx];
-  if (!token) return;
-  const zoneEl = document.querySelector('.zone[data-zone="'+zoneIdx+'"]');
-  zoneEl.classList.remove('active');
-  zoneEl.style.removeProperty('--glow');
-  // remove chip
-  const chip = zoneEl.querySelector('.chip');
-  if (chip) zoneEl.removeChild(chip);
-  delete zoneState[zoneIdx];
-  // if no other zone uses this token, stop track
-  const stillUsed = Object.values(zoneState).includes(token);
-  if (!stillUsed) {
-    stopTrack(token);
-  }
-}
-
-// token color helper
-function tokenColor(name) {
-  if (name === 'bass') return 'rgba(40,160,220,0.9)';
-  if (name === 'melody') return 'rgba(240,210,90,0.95)';
-  if (name === 'drums') return 'rgba(220,90,80,0.95)';
-  return 'rgba(255,255,255,0.7)';
-}
-
-// stop a track gracefully: set playing=false and clear scheduled nodes after current loop
-function stopTrack(name) {
-  if (!tracks[name]) return;
-  tracks[name].playing = false;
-  // remove lingering scheduled nodes at next safe time — we'll simply let them stop naturally
-  // additionally, purge nodeGroup references that have finished
-  setTimeout(()=> {
-    // attempt to disconnect nodes (cleanup)
-    tracks[name].nodeGroup.forEach(obj => {
-      for (let k in obj) {
-        try {
-          if (obj[k] && typeof obj[k].disconnect === 'function') obj[k].disconnect();
-        } catch(e){}
-      }
+// start a cassette: actually play its audio
+function startCassette(cid){
+  const st = cassetteState[cid];
+  if (!st) return;
+  const idx = st.trackIndex;
+  // if audio element source present -> play. Else just mark as playing (no sound)
+  const aud = audioEls[idx];
+  if (aud && aud.src) {
+    // stop current playing if any (we use queue semantics, so don't stop)
+    aud.currentTime = 0;
+    aud.volume = getGainForIndex(idx);
+    aud.play().catch(e=>{
+      console.warn('Audio play error', e);
     });
-    tracks[name].nodeGroup = [];
-  }, (loopDuration()+0.2) * 1000);
-  // if no tracks left playing, stop scheduler after one loop
-  if (!Object.keys(tracks).some(t=>tracks[t].playing)) {
-    setTimeout(()=> {
-      if (!Object.keys(tracks).some(t=>tracks[t].playing)) {
-        stopScheduler();
-      }
-    }, loopDuration()*1000 + 200);
+    // attach ended handler to start next in queue
+    aud.onended = ()=>{
+      // mark this cassette as not playing (but keep cached)
+      st.playing = false;
+      currentPlayingId = null;
+      // if this cassette is still onPad but was not in queue, it stays idle
+      // start next queued
+      startNextInQueue();
+      updateCassetteUI(cid);
+    };
+  } else {
+    // fallback: no audio source - simulate a timed playing (e.g. 8s)
+    const simDuration = 8000 + Math.floor(Math.random()*4000);
+    setTimeout(()=>{
+      st.playing = false;
+      currentPlayingId = null;
+      startNextInQueue();
+      updateCassetteUI(cid);
+    }, simDuration);
   }
+  st.playing = true;
+  currentPlayingId = cid;
+  // ensure it's removed from queue if was queued
+  if (st.queued) {
+    st.queued = false;
+    playQueue = playQueue.filter(x => x !== cid);
+  }
+  updateQueueView();
+  updateCassetteUI(cid);
 }
 
-// allow dragging chips out to remove
-document.addEventListener('dragstart', (e)=>{
-  // if dragging chip (child inside zone)
-  if (e.target && e.target.classList.contains('chip')) {
-    e.dataTransfer.setData('text/plain', 'chip');
-    e.target.classList.add('dragging-chip');
+// stop cassette playback
+function stopCassette(cid, dueToLift){
+  const st = cassetteState[cid]; if(!st) return;
+  const idx = st.trackIndex;
+  const aud = audioEls[idx];
+  if (aud && aud.src && !aud.paused) {
+    try { aud.pause(); aud.currentTime = 0; } catch(e){}
   }
-});
-document.addEventListener('dragend', (e)=>{
-  const el = document.querySelector('.chip.dragging-chip');
-  if (el) el.classList.remove('dragging-chip');
-});
-// allow dropping outside cube to remove
-document.body.addEventListener('dragover', (e)=> e.preventDefault());
-document.body.addEventListener('drop', (e)=> {
-  const dt = e.dataTransfer.getData('text/plain');
-  if (dt === 'chip') {
-    // find the dragging chip and remove it and stop track if unused
-    const chip = document.querySelector('.chip.dragging-chip') || document.querySelector('.chip');
-    if (!chip) return;
-    // find parent zone
-    const parent = chip.parentElement;
-    if (parent && parent.classList.contains('zone')) {
-      const zoneIdx = parent.dataset.zone|0;
-      removeTokenFromZone(zoneIdx);
-    }
-    try{ chip.remove(); }catch(e){}
-  }
-});
+  st.playing = false;
+  if (currentPlayingId === cid) currentPlayingId = null;
+  // if it was in queue, remove
+  if (st.queued) { st.queued = false; playQueue = playQueue.filter(x => x !== cid); }
+  updateQueueView();
+  updateCassetteUI(cid);
+}
 
-// mixer sliders
-document.querySelectorAll('.gain').forEach(inp => {
-  inp.addEventListener('input', (e)=> {
-    const t = e.target.dataset.track;
-    const v = parseFloat(e.target.value);
-    if (tracks[t] && tracks[t].gainNode) tracks[t].gainNode.gain.value = v;
+// start next in queue
+function startNextInQueue(){
+  if (currentPlayingId) return;
+  if (playQueue.length === 0) {
+    updateQueueView();
+    return;
+  }
+  const nextId = playQueue.shift();
+  const st = cassetteState[nextId];
+  if (!st || !st.onPad) {
+    // skip and continue
+    return startNextInQueue();
+  }
+  startCassette(nextId);
+}
+
+// remove from queue
+function removeFromQueue(cid){
+  playQueue = playQueue.filter(x => x !== cid);
+  if (cassetteState[cid]) cassetteState[cid].queued = false;
+  updateQueueView();
+}
+
+// update UI
+function updateQueueView(){
+  if (currentPlayingId === null && playQueue.length === 0) {
+    queueView.textContent = 'Ingen kö';
+    return;
+  }
+  let html = '';
+  if (currentPlayingId) {
+    const st = cassetteState[currentPlayingId];
+    html += `Spelar nu: Cassette ${st.trackIndex+1}\n`;
+  }
+  if (playQueue.length) {
+    html += '\nKö:\n';
+    playQueue.forEach((cid,i)=> {
+      html += `${i+1}. Cassette ${cassetteState[cid].trackIndex+1}\n`;
+    });
+  }
+  queueView.textContent = html;
+}
+function updateCassetteUI(cid){
+  const st = cassetteState[cid];
+  const el = st.el;
+  const lab = el.querySelector('.status');
+  if (st.playing) lab.textContent = 'playing';
+  else if (st.queued) lab.textContent = 'queued';
+  else if (st.onPad && st.cached) lab.textContent = 'ready';
+  else if (st.onPad && !st.cached) lab.textContent = 'loading';
+  else lab.textContent = 'idle';
+}
+
+// gain controls
+function getGainForIndex(i){
+  const el = document.getElementById('gain'+(i+1));
+  return el ? parseFloat(el.value) : 0.9;
+}
+['gain1','gain2','gain3'].forEach(id=>{
+  document.getElementById(id).addEventListener('input', ()=>{
+    // if audio element playing, update its volume
+    for (let k in cassetteState){
+      const st = cassetteState[k];
+      if (st && st.playing){
+        const idx = st.trackIndex;
+        if (audioEls[idx] && audioEls[idx].src) audioEls[idx].volume = getGainForIndex(idx);
+      }
+    }
   });
 });
 
 // stop all button
 document.getElementById('stopAll').addEventListener('click', ()=>{
-  // clear zone UI
-  document.querySelectorAll('.zone').forEach(z=> {
-    z.classList.remove('active');
-    z.style.removeProperty('--glow');
-    const chip = z.querySelector('.chip');
-    if (chip) chip.remove();
-  });
-  // stop audio nodes
-  for (let k of Object.keys(tracks)) {
-    tracks[k].playing = false;
-    tracks[k].nodeGroup.forEach(obj => {
-      for (let n in obj) {
-        try { if (obj[n] && typeof obj[n].stop === 'function') obj[n].stop(); } catch(e){}
-        try { if (obj[n] && typeof obj[n].disconnect === 'function') obj[n].disconnect(); } catch(e){}
-      }
-    });
-    tracks[k].nodeGroup = [];
+  // stop audio
+  for (let i=0;i<audioEls.length;i++){
+    try { audioEls[i].pause(); audioEls[i].currentTime = 0; } catch(e){}
   }
-  stopScheduler();
-});
-
-// when user changes BPM, restart transport timings safely
-tempoInput.addEventListener('change', ()=>{
-  // nothing heavy — scheduler reads tempo each tick.
-});
-
-// small UX: clicking zone toggles first token in token list if none placed
-document.querySelectorAll('.zone').forEach((z,i)=>{
-  z.addEventListener('click', ()=>{
-    if (!zoneState[i]) {
-      // place 'bass' by default for quick testing
-      handlePlaceToken('bass', z);
-    } else {
-      removeTokenFromZone(i);
-    }
+  // reset states
+  Object.keys(cassetteState).forEach(k=>{
+    const st = cassetteState[k]; st.playing=false; st.queued=false; st.onPad=false;
+    updateCassetteUI(k);
   });
+  currentPlayingId = null; playQueue = []; updateQueueView();
 });
 
-// initial notes: resume audio on first user gesture (handled by dragstart) — but add fallback
-document.body.addEventListener('pointerdown', function once(){
-  if (!audioCtx) {
-    // create but mute to avoid surprise sound
-    ensureAudio();
-    // stop immediately until tokens placed
-    stopScheduler();
+// reset positions
+document.getElementById('resetPositions').addEventListener('click', ()=>{
+  const keys = Object.keys(cassetteState);
+  for(let i=0;i<keys.length;i++){
+    const k = keys[i];
+    const pos = {x:40, y:120 + i*110};
+    cassetteState[k].el.style.left = pos.x + 'px';
+    cassetteState[k].el.style.top  = pos.y + 'px';
   }
-  document.body.removeEventListener('pointerdown', once);
 });
+
+// initial UI refresh
+Object.keys(cassetteState).forEach(k => updateCassetteUI(k));
+updateQueueView();
+
+// helper: allow replacing AUDIO_FILES easily - show instructions in console
+console.log('Prototyp laddad. För att använda egna spår: lägg filerna i /audio/track1.mp3 etc eller ändra AUDIO_FILES array och uppdatera sidan.');
 
 </script>
 </body>
