@@ -3,126 +3,90 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>The CUBE — prototyp (visuellt finjusterad)</title>
+<title>The CUBE — prototyp (fixad)</title>
 <style>
   :root{
-    --bg:#e7e7e7; /* match referens ljusgrå bakgrund */
+    --bg:#e7e7e7;
     --panel:#ffffff;
     --muted:#707070;
     --accent:#1f7aef;
-    --light-shadow: rgba(0,0,0,0.06);
   }
   html,body{height:100%;margin:0;background:var(--bg);color:#222;font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial;}
-  .page{ max-width:1050px; margin:22px auto; padding:0 18px; box-sizing:border-box; }
-  .stage{ margin:0 auto; width:760px; position:relative; }
+  .page{ max-width:1200px; margin:22px auto; padding:12px; box-sizing:border-box;}
+  .top-title{ color:#9a9a9a; margin-bottom:10px; font-size:14px; }
 
-  /* Player card: match sedan-lik bottenpanel */
+  /* Two-column layout */
+  .layout { display:grid; grid-template-columns: 720px 1fr; gap:28px; align-items:start; }
+
+  /* Player card (left) */
   .player-card{
-    width:720px;
-    background:var(--panel);
+    width:720px; background:transparent; margin:0;
+    display:flex; flex-direction:column; gap:0;
+  }
+  .player-frame{
+    width:100%;
     border-radius:12px;
-    border:1px solid rgba(0,0,0,0.36);
-    box-shadow: 0 2px 0 rgba(0,0,0,0.12);
     overflow:visible;
-    margin:18px auto;
+    background:transparent; /* make transparent: let SVG draw all visuals */
+  }
+  .reader-area { width:100%; height:720px; display:block; position:relative; }
+
+  /* We show the SVG itself — no extra background */
+  #playerSVG{ width:100%; height:100%; display:block; }
+
+  /* Footer area integrated (white strip under SVG drawn in the SVG itself) */
+  .footer-bar {
+    height:120px; display:flex; align-items:center; justify-content:space-between;
+    margin-top:8px; padding:12px 18px; box-sizing:border-box;
   }
 
-  /* Reader area */
-  .reader-wrap{ padding:18px 18px 0 18px; }
-  .reader-inner{
-    width:684px; height:684px; margin:0 auto;
-    background:linear-gradient(180deg,#fafafa,#fbfbfb);
-    border-radius:10px;
-    box-shadow: inset 0 2px 6px rgba(0,0,0,0.06);
-    border: 1px solid rgba(0,0,0,0.06);
-    position:relative;
-  }
+  /* left power group */
+  .left-group{ display:flex; align-items:center; gap:12px; }
+  .indicator{ width:8px;height:8px;border-radius:50%; background:transparent; box-shadow:none; transition:all .18s; }
+  .power-btn{ width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid rgba(0,0,0,0.12); background:var(--panel); box-shadow:0 3px 8px rgba(0,0,0,0.06); cursor:pointer; transition:transform .12s; }
+  .power-btn:active{ transform:scale(.92); }
 
-  /* Player SVG occupies this area */
-  #playerSVG{ width:100%; height:100%; display:block; pointer-events:auto; }
+  /* right control buttons */
+  .right-group{ display:flex; gap:22px; align-items:center; }
+  .ctrl-btn{ width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid rgba(0,0,0,0.12); background:var(--panel); box-shadow:0 3px 8px rgba(0,0,0,0.06); cursor:pointer; transition:transform .12s; }
+  .ctrl-btn:active{ transform:scale(.92); }
 
-  /* Bottom foot with controls (integrated white footer) */
-  .footer {
-    height:120px;
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    padding:18px;
-    box-sizing:border-box;
-    border-top:1px solid rgba(0,0,0,0.06);
-    border-bottom-left-radius:12px;
-    border-bottom-right-radius:12px;
-    background:var(--panel);
-  }
+  /* Tokens column (right): visible and shows cassettes */
+  .tokens-col { min-height:720px; padding-top:12px; display:flex; flex-direction:column; gap:18px; align-items:center; }
+  .tokens-grid { width:320px; height:720px; position:relative; border-radius:10px; }
 
-  /* left area for power + indicator */
-  .left-controls{ display:flex; align-items:center; gap:16px; padding-left:6px; }
-
-  .power-indicator{
-    width:8px; height:8px; border-radius:50%; background:#dff6df; margin-top:-6px; box-shadow:0 0 0 3px rgba(110,227,123,0.05);
-  }
-
-  .power-button{
-    width:48px; height:48px; border-radius:999px;
-    display:flex; align-items:center; justify-content:center;
-    background:transparent;
-    border:2px solid rgba(0,0,0,0.12);
-    box-shadow: 0 3px 8px rgba(0,0,0,0.06);
-    cursor:pointer;
-    transition: transform 120ms ease;
-  }
-  .power-button:active{ transform:scale(0.9); }
-  .power-button svg{ width:28px; height:28px; }
-
-  /* right area - small circular controls */
-  .right-controls{ display:flex; align-items:center; gap:26px; padding-right:10px; }
-  .ctrl-btn{
-    width:48px; height:48px; border-radius:999px;
-    background:transparent; border:2px solid rgba(0,0,0,0.12);
-    display:flex; align-items:center; justify-content:center;
-    box-shadow: 0 3px 8px rgba(0,0,0,0.06);
-    cursor:pointer; transition: transform 120ms ease;
-  }
-  .ctrl-btn:active{ transform:scale(0.9); }
-  .ctrl-btn svg{ width:22px; height:22px; }
-
-  /* tokens (right column not used here) */
-  .tokens-grid{ position:relative; width:320px; height:420px; }
-
-  /* cassettes */
-  .cassette{ position:absolute; width:200px; height:199px; cursor:grab; user-select:none; touch-action:none; transition: transform .12s, box-shadow .12s, outline .12s; background:transparent; }
+  /* Cassette element */
+  .cassette { position:absolute; width:200px; height:199px; cursor:grab; user-select:none; touch-action:none; transition: transform .12s, box-shadow .12s, outline .12s; background:transparent; z-index:120; }
   .cassette.dragging{ cursor:grabbing; transform:scale(1.02); }
 
-  /* remove rect backgrounds inside cassette svg */
+  /* remove rects inside cassette svg (extra guard) */
   .cassette svg rect { display:none !important; }
 
-  /* subtle outlines when playing */
-  .cassette.playing{ outline:4px solid rgba(40,200,220,0.95); box-shadow:0 30px 60px rgba(30,160,220,0.08); }
-  .cassette.queued{ outline:2px dashed rgba(200,200,200,0.12); box-shadow:0 10px 24px rgba(0,0,0,0.06); }
+  /* cassette visual states */
+  .cassette.playing { outline:4px solid rgba(40,200,220,0.95); box-shadow:0 30px 60px rgba(30,160,220,0.08); }
+  .cassette.queued  { outline:2px dashed rgba(200,200,200,0.12); box-shadow:0 18px 30px rgba(0,0,0,0.06); }
 
-  /* no browser focus rings for player or controls */
-  #playerSVG, #playerSVG * { outline: none !important; -webkit-tap-highlight-color: transparent; }
-  .power-button:focus, .ctrl-btn:focus { outline:none; box-shadow:0 0 0 6px rgba(0,0,0,0.03); }
+  /* Accessibility / focus: remove default blue ring but keep subtle box-shadow for buttons */
+  #playerSVG, #playerSVG * { outline:none !important; -webkit-tap-highlight-color: transparent; }
+  .power-btn:focus, .ctrl-btn:focus { outline:none; box-shadow:0 0 0 6px rgba(0,0,0,0.03); }
 
-  /* Small helpers */
-  .title{ color:#8b8b8b; font-size:14px; margin:8px 0 10px 6px; }
-  .center-row{ display:flex; align-items:center; justify-content:center; gap:6px; }
-
-  @media (max-width:800px){
-    .stage{ width:94%; }
-    .player-card{ width:100%; }
-    .reader-inner{ width:88vw; height:88vw; }
+  /* small responsive */
+  @media (max-width:1000px){
+    .layout{ grid-template-columns: 1fr; }
+    .tokens-col{ order:2; display:flex; justify-content:center; }
   }
 </style>
 </head>
 <body>
   <div class="page">
-    <div class="title">The cube digital prototype 1</div>
-    <div class="stage">
-      <div class="player-card" role="application" aria-label="The CUBE player">
-        <div class="reader-wrap">
-          <div class="reader-inner" id="readerInner">
-            <!-- PLAYER SVG (utan inbyggda knappar) - behålls exakt -->
+    <div class="top-title">The cube digital prototype 1</div>
+
+    <div class="layout">
+      <!-- Left: Player -->
+      <div class="player-card">
+        <div class="player-frame">
+          <div class="reader-area" id="readerArea">
+            <!-- YOUR PLAYER SVG (original) — kept exactly as you provided -->
             <svg id="playerSVG" tabindex="-1" xmlns="http://www.w3.org/2000/svg" width="552" height="673" viewBox="0 0 552 673" preserveAspectRatio="xMidYMid meet">
   <defs>
     <filter id="Rectangle_3"><feOffset input="SourceAlpha"/><feGaussianBlur stdDeviation="1.5" result="blur"/><feFlood result="color"/><feComposite operator="out" in="SourceGraphic" in2="blur"/><feComposite operator="in" in="color"/><feComposite operator="in" in2="SourceGraphic"/></filter>
@@ -150,64 +114,43 @@
           </div>
         </div>
 
-        <!-- footer with controls (integrated white bottom) -->
-        <div class="footer" role="toolbar" aria-label="Controls">
-          <div class="left-controls">
-            <div class="power-indicator" id="powerIndicator" aria-hidden="true"></div>
-            <button id="powerBtn" class="power-button" aria-pressed="false" title="Power">
-              <!-- small power svg -->
-              <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                <circle cx="12" cy="12" r="9" fill="none" stroke="#111" stroke-width="1.2"></circle>
-                <path d="M12 7v5" stroke="#111" stroke-width="1.6" stroke-linecap="round" fill="none"></path>
-              </svg>
+        <!-- footer controls (kept minimal — the SVG above already draws the bottom white panel visually) -->
+        <div class="footer-bar" aria-hidden="false">
+          <div class="left-group">
+            <div id="powerIndicator" class="indicator" aria-hidden="true"></div>
+            <button id="powerBtn" class="power-btn" aria-pressed="false" title="Power">
+              <svg viewBox="0 0 24 24" width="20" height="20" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="9" fill="none" stroke="#111" stroke-width="1.1"></circle><path d="M12 7v5" stroke="#111" stroke-width="1.4" stroke-linecap="round" fill="none"></path></svg>
             </button>
           </div>
 
-          <div class="right-controls">
+          <div class="right-group">
             <button id="shuffleBtn" class="ctrl-btn" title="Shuffle" aria-pressed="false">
-              <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                <path d="M3 7h4.5c1.6 0 2.5 0 3.4.5 0 0 1 .6 2.6 2.7" stroke="#111" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-                <path d="M21 7l-3-3v2.2" stroke="#111" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-                <path d="M21 17l-3 3v-2.2" stroke="#111" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-              </svg>
+              <svg viewBox="0 0 24 24" width="18" height="18" xmlns="http://www.w3.org/2000/svg"><path d="M3 7h4.5c1.6 0 2.5 0 3.4.5 0 0 1 .6 2.6 2.7" stroke="#111" stroke-width="1.1" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 7l-3-3v2.2" stroke="#111" stroke-width="1.1" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 17l-3 3v-2.2" stroke="#111" stroke-width="1.1" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </button>
-
-            <button id="volDownBtn" class="ctrl-btn" title="Vol-">
-              <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                <path d="M5 12h10" stroke="#111" stroke-width="1.6" stroke-linecap="round" fill="none"/>
-              </svg>
-            </button>
-
-            <button id="volUpBtn" class="ctrl-btn" title="Vol+">
-              <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                <path d="M12 5v14" stroke="#111" stroke-width="1.6" stroke-linecap="round" fill="none"/>
-                <path d="M5 12h14" stroke="#111" stroke-width="1.6" stroke-linecap="round" fill="none"/>
-              </svg>
-            </button>
+            <button id="volDownBtn" class="ctrl-btn" title="Vol-"><svg viewBox="0 0 24 24" width="16" height="16" xmlns="http://www.w3.org/2000/svg"><path d="M5 12h10" stroke="#111" stroke-width="1.4" stroke-linecap="round" fill="none"/></svg></button>
+            <button id="volUpBtn" class="ctrl-btn" title="Vol+"><svg viewBox="0 0 24 24" width="16" height="16" xmlns="http://www.w3.org/2000/svg"><path d="M12 5v14" stroke="#111" stroke-width="1.4" stroke-linecap="round" fill="none"/><path d="M5 12h14" stroke="#111" stroke-width="1.4" stroke-linecap="round" fill="none"/></svg></button>
           </div>
         </div>
+
       </div>
 
-      <!-- tokens grid (not visible in design but used for cassette DOM) -->
-      <div style="display:none;">
-        <div id="tokensGrid" class="tokens-grid"></div>
+      <!-- Right: tokens -->
+      <div class="tokens-col">
+        <div style="font-size:13px;color:#6e6e6e;margin-bottom:6px;">Cassette tokens — dra till plattan</div>
+        <div id="tokensGrid" class="tokens-grid" aria-hidden="false"></div>
       </div>
     </div>
   </div>
 
-<!-- loading badge -->
-<div style="display:none" id="loadingBadge" aria-hidden="true"></div>
-
 <script>
 /* ============================
-   AUDIO FILES
+   AUDIO SOURCES
    ============================ */
 const AUDIO_FILES = [
   'https://raw.githubusercontent.com/StoneMarble303/THEAUDIOCUBE/main/audio/Armaku_ElektroPunk_Full_Drum_Loop_120_08.wav',
   'https://raw.githubusercontent.com/StoneMarble303/THEAUDIOCUBE/main/audio/Armaku_ElektroPunk_Bass_Loop_11_130_Eb_Min.wav',
   'https://raw.githubusercontent.com/StoneMarble303/THEAUDIOCUBE/main/audio/Armaku_ElektroPunk_Full_Drum_Loop_120_06.wav'
 ];
-
 const audioEls = AUDIO_FILES.map(()=>null);
 async function initAudioSources(){
   for (let i=0;i<AUDIO_FILES.length;i++){
@@ -232,50 +175,8 @@ async function initAudioSources(){
 initAudioSources();
 
 /* ============================
-   Simple playback state & UI wiring
+   Cassette SVG + creation + drag (visible now)
    ============================ */
-const powerBtn = document.getElementById('powerBtn');
-const shuffleBtn = document.getElementById('shuffleBtn');
-const volDownBtn = document.getElementById('volDownBtn');
-const volUpBtn = document.getElementById('volUpBtn');
-const powerIndicator = document.getElementById('powerIndicator');
-
-let powerOn = false;
-let shuffleOn = false;
-let masterVolume = 0.9;
-
-function updateIndicator(on){
-  powerIndicator.style.background = on ? '#dff6df' : 'transparent';
-  if (on) powerIndicator.style.boxShadow = '0 0 0 6px rgba(110,227,123,0.04)'; else powerIndicator.style.boxShadow = 'none';
-}
-
-async function unlockAudioOnce(){
-  if (window._audioUnlocked) return;
-  window._audioUnlocked = true;
-  for (let a of audioEls){
-    if (!a || !a.src) continue;
-    try { await a.play().then(()=>{ a.pause(); a.currentTime=0; }).catch(()=>{}); } catch(e){}
-  }
-}
-
-powerBtn.addEventListener('click', async ()=>{
-  await unlockAudioOnce();
-  powerOn = !powerOn;
-  powerBtn.setAttribute('aria-pressed', String(powerOn));
-  updateIndicator(powerOn);
-  if (!powerOn){
-    audioEls.forEach(a=>{ try{ a.pause(); a.currentTime=0; }catch(e){} });
-  }
-});
-shuffleBtn.addEventListener('click', ()=>{ shuffleOn = !shuffleOn; shuffleBtn.setAttribute('aria-pressed', String(shuffleOn)); shuffleBtn.style.boxShadow = shuffleOn ? '0 6px 20px rgba(0,0,0,0.12)' : '0 3px 8px rgba(0,0,0,0.06)'; });
-volDownBtn.addEventListener('click', ()=>{ masterVolume = Math.max(0, masterVolume-0.06); audioEls.forEach(a=>{ if (a) a.volume = masterVolume; }); });
-volUpBtn.addEventListener('click', ()=>{ masterVolume = Math.min(1, masterVolume+0.06); audioEls.forEach(a=>{ if (a) a.volume = masterVolume; }); });
-
-/* ============================
-   Cassette logic (same as tidigare prototyp)
-   - cassettes är dolda i DOM i denna layout, men funktionen finns
-   ============================ */
-const tokensGrid = document.getElementById('tokensGrid');
 const CASSETTE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="199" viewBox="0 0 200 199">
   <defs><clipPath id="clip-cassette"><rect width="200" height="199"/></clipPath></defs>
   <g id="cassette" clip-path="url(#clip-cassette)">
@@ -289,37 +190,239 @@ const CASSETTE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="200" height
       <g id="Ellipse_3" transform="translate(1035 229)" fill="#ebebeb" stroke="#707070" stroke-width="1">
         <circle cx="9.5" cy="9.5" r="9.5"/><circle cx="9.5" cy="9.5" r="9" fill="none"/>
       </g>
-      <text id="Track_1" transform="translate(1015 286)" fill="#707070" font-size="20" font-family="HelveticaNeue, Helvetica Neue"><tspan x="0" y="0">Track 1</tspan></text>
+      <text id="Track_1" transform="translate(1015 286)" fill="#707070" font-size="20" font-family="HelveticaNeue, Helvetica Neue"><tspan x="0" y="0">Track</tspan></text>
     </g>
   </g>
 </svg>`;
 
+const tokensGrid = document.getElementById('tokensGrid');
 let cassetteState = {}, playQueue = [], currentPlayingId = null;
 
-function createCassette(id, idx){
+/* initial positions in tokensGrid */
+const positions = [{left:20,top:20},{left:20,top:250},{left:20,top:480}];
+for (let i=0;i<3;i++) createCassette('c'+(i+1), i, positions[i]);
+
+function createCassette(id, trackIndex, pos){
   const wrapper = document.createElement('div');
   wrapper.className = 'cassette';
   wrapper.dataset.cid = id;
-  wrapper.dataset.track = idx;
-  wrapper.style.left = '10px';
-  wrapper.style.top = '6px';
+  wrapper.dataset.track = trackIndex;
+  wrapper.style.left = pos.left+'px';
+  wrapper.style.top = pos.top+'px';
   wrapper.innerHTML = CASSETTE_SVG;
-  // hide large rects if any
+
+  // hide large rects inside SVG if present
   try {
-    const svg = wrapper.querySelector('svg');
-    if (svg) { svg.querySelectorAll('rect').forEach(r=>r.remove()); }
-  } catch(e){}
+    const svgRoot = wrapper.querySelector('svg');
+    if (svgRoot) {
+      const rects = Array.from(svgRoot.querySelectorAll('rect'));
+      rects.forEach(r => {
+        const w = parseFloat(r.getAttribute('width')||0);
+        const h = parseFloat(r.getAttribute('height')||0);
+        if (w > 0 && h > 0 && (w >= 0.7 * svgRoot.viewBox.baseVal.width || h >= 0.7 * svgRoot.viewBox.baseVal.height)) r.remove();
+        else r.style.display='none';
+      });
+    }
+  } catch(e){ console.warn('strip cassette rects failed', e); }
+
   tokensGrid.appendChild(wrapper);
-  cassetteState[id] = { trackIndex: idx, el: wrapper, onPad:false, cached:false, playing:false, queued:false };
-  // draggable not shown in UI but kept for prototyping
+  cassetteState[id] = { trackIndex, el: wrapper, onPad:false, cached:false, playing:false, queued:false };
+  makeDraggable(wrapper);
 }
 
-for (let i=0;i<3;i++) createCassette('cass'+(i+1), i);
+/* ====== drag + magnet logic (similar behavior as before) ====== */
+const playerSVG = document.getElementById('playerSVG');
+const padRectEl = playerSVG.getElementById('Rectangle_3-2') || playerSVG.getElementById('Rectangle_3-3') || playerSVG.querySelector('rect[rx="8"]');
+
+function getPadRectScreen(){
+  const padBox = padRectEl.getBBox();
+  const svgRect = playerSVG.getBoundingClientRect();
+  const viewBox = playerSVG.viewBox.baseVal;
+  const scaleX = svgRect.width / viewBox.width;
+  const scaleY = svgRect.height / viewBox.height;
+  const left = svgRect.left + padBox.x * scaleX;
+  const top  = svgRect.top  + padBox.y * scaleY;
+  return { left, top, width: padBox.width * scaleX, height: padBox.height * scaleY, centerX:left + (padBox.x + padBox.width/2)*scaleX, centerY: top + (padBox.y + padBox.height/2)*scaleY };
+}
+
+function makeDraggable(elem){
+  let dragging=false, pid=null, offset={x:0,y:0};
+  const id = elem.dataset.cid;
+
+  function down(e){
+    e.preventDefault();
+    dragging=true; pid=e.pointerId;
+    elem.setPointerCapture(pid);
+    const r = elem.getBoundingClientRect();
+    offset.x = e.clientX - r.left; offset.y = e.clientY - r.top;
+    elem.classList.add('dragging');
+    if (cassetteState[id].playing) stopCassette(id,true);
+  }
+  function move(e){
+    if(!dragging || e.pointerId!==pid) return;
+    let nx = e.clientX - offset.x;
+    let ny = e.clientY - offset.y;
+    // magnet effect
+    const pad = getPadRectScreen();
+    const dx = e.clientX - pad.centerX, dy = e.clientY - pad.centerY;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    const magnetRadius = Math.max(pad.width, pad.height) * 0.85;
+    if (dist < magnetRadius){
+      const pull = 0.12 + (1 - dist/magnetRadius)*0.25;
+      nx = nx + (pad.centerX - e.clientX)*pull;
+      ny = ny + (pad.centerY - e.clientY)*pull;
+      elem.style.transform = 'scale(1.02)';
+      elem.style.boxShadow = '0 18px 32px rgba(0,0,0,0.20)';
+    } else {
+      elem.style.transform = '';
+      elem.style.boxShadow = '0 12px 24px rgba(0,0,0,0.12)';
+    }
+    const gridRect = tokensGrid.getBoundingClientRect();
+    elem.style.left = Math.max(-10, nx - gridRect.left) + 'px';
+    elem.style.top = Math.max(-10, ny - gridRect.top) + 'px';
+  }
+  function up(e){
+    if(!dragging || e.pointerId!==pid) return;
+    dragging=false; elem.classList.remove('dragging');
+    elem.releasePointerCapture(pid);
+    elem.style.transform='';
+    const rect = elem.getBoundingClientRect();
+    const centerX = rect.left + rect.width/2, centerY = rect.top + rect.height/2;
+    const pad = getPadRectScreen();
+    const inside = (centerX >= pad.left && centerX <= pad.left + pad.width && centerY >= pad.top && centerY <= pad.top + pad.height);
+    if (inside){
+      // snap to pad center-ish
+      const container = tokensGrid.getBoundingClientRect();
+      const snapX = pad.centerX - rect.width/2;
+      const snapY = pad.centerY - rect.height/2;
+      elem.style.left = (snapX - tokensGrid.getBoundingClientRect().left) + 'px';
+      elem.style.top = (snapY - tokensGrid.getBoundingClientRect().top) + 'px';
+      cassetteState[id].onPad = true;
+      if (!cassetteState[id].cached){
+        cassetteState[id].cached = true;
+        // simulate preload latency then start
+        setTimeout(()=>handleDrop(id), 450 + Math.random()*450);
+      } else handleDrop(id);
+    } else {
+      // removed from pad
+      if (cassetteState[id].onPad) {
+        cassetteState[id].onPad = false;
+        removeFromQueue(id);
+        if (cassetteState[id].playing) { stopCassette(id, false); startNextInQueue(); }
+      }
+    }
+    elem.style.boxShadow='';
+  }
+
+  elem.addEventListener('pointerdown', down);
+  window.addEventListener('pointermove', move);
+  window.addEventListener('pointerup', up);
+}
+
+/* ================ playback queue logic ================ */
+function handleDrop(cid){
+  const st = cassetteState[cid];
+  if (!st) return;
+  if (!window._powerOn) { console.log('power off — cached but not started'); return; }
+  if (!currentPlayingId) startCassette(cid);
+  else {
+    if (!st.queued){ st.queued = true; playQueue.push(cid); updateAllUI(); }
+  }
+}
+
+function startCassette(cid){
+  const st = cassetteState[cid];
+  if (!st) return;
+  const idx = st.trackIndex;
+  const aud = audioEls[idx];
+  if (!aud || !aud.src) { console.warn('no audio for', idx); return; }
+  try {
+    aud.volume = window._masterVolume || 0.9;
+    aud.currentTime = 0;
+    const p = aud.play();
+    if (p && p.catch) p.catch(e=>console.warn('play rejected', e));
+    st.playing = true; st.queued = false; currentPlayingId = cid;
+    aud.onended = ()=>{ st.playing=false; currentPlayingId=null; startNextInQueue(); updateAllUI(); };
+    updateAllUI();
+  } catch(e){ console.error('start fail', e); }
+}
+
+function stopCassette(cid, dueToLift){
+  const st = cassetteState[cid];
+  if (!st) return;
+  const idx = st.trackIndex;
+  const aud = audioEls[idx];
+  if (aud && !aud.paused){ try{ aud.pause(); aud.currentTime=0; }catch(e){} }
+  st.playing=false;
+  if (currentPlayingId === cid) currentPlayingId = null;
+  if (st.queued){ st.queued=false; playQueue = playQueue.filter(x=>x!==cid); }
+  updateAllUI();
+}
+
+function startNextInQueue(){
+  if (currentPlayingId) return;
+  if (playQueue.length === 0) return;
+  const next = window._shuffleOn ? playQueue.splice(Math.floor(Math.random()*playQueue.length),1)[0] : playQueue.shift();
+  if (next && cassetteState[next] && cassetteState[next].onPad) startCassette(next);
+  updateAllUI();
+}
+
+function removeFromQueue(cid){ playQueue = playQueue.filter(x=>x!==cid); if (cassetteState[cid]) cassetteState[cid].queued=false; updateAllUI(); }
+
+function updateAllUI(){
+  Object.keys(cassetteState).forEach(k=>{
+    const s = cassetteState[k];
+    s.el.classList.toggle('playing', !!s.playing);
+    s.el.classList.toggle('queued', !!s.queued);
+  });
+  // (could update an on-screen queue)...
+}
+
+/* ================ Controls wiring ================ */
+const powerBtn = document.getElementById('powerBtn');
+const shuffleBtn = document.getElementById('shuffleBtn');
+const volDownBtn = document.getElementById('volDownBtn');
+const volUpBtn = document.getElementById('volUpBtn');
+const powerIndicator = document.getElementById('powerIndicator');
+
+window._masterVolume = 0.9;
+window._powerOn = false;
+window._shuffleOn = false;
+
+async function unlockAudioOnce(){
+  if (window._audioUnlocked) return;
+  window._audioUnlocked = true;
+  for (let a of audioEls){ if (!a || !a.src) continue; try{ await a.play().then(()=>{ a.pause(); a.currentTime=0; }).catch(()=>{}); }catch(e){} }
+}
+
+powerBtn.addEventListener('click', async ()=>{
+  await unlockAudioOnce();
+  window._powerOn = !window._powerOn;
+  powerBtn.setAttribute('aria-pressed', String(window._powerOn));
+  powerIndicator.style.background = window._powerOn ? '#dff6df' : 'transparent';
+  powerIndicator.style.boxShadow = window._powerOn ? '0 0 0 6px rgba(110,227,123,0.04)' : 'none';
+  if (!window._powerOn) {
+    // stop everything
+    Object.keys(cassetteState).forEach(k=>{ stopCassette(k,false); cassetteState[k].queued=false; cassetteState[k].onPad=false; });
+    playQueue = []; currentPlayingId = null;
+    // reset cassette positions to right column
+    Object.keys(cassetteState).forEach((k,i)=> {
+      const el = cassetteState[k].el;
+      el.style.left = positions[i].left + 'px';
+      el.style.top = positions[i].top + 'px';
+    });
+    updateAllUI();
+  }
+});
+
+shuffleBtn.addEventListener('click', ()=>{ window._shuffleOn = !window._shuffleOn; shuffleBtn.setAttribute('aria-pressed', String(window._shuffleOn)); shuffleBtn.style.boxShadow = window._shuffleOn ? '0 6px 20px rgba(0,0,0,0.12)' : '0 3px 8px rgba(0,0,0,0.06)'; });
+
+volDownBtn.addEventListener('click', ()=>{ window._masterVolume = Math.max(0, window._masterVolume - 0.06); audioEls.forEach(a=>{ if (a) a.volume = window._masterVolume; }); });
+volUpBtn.addEventListener('click', ()=>{ window._masterVolume = Math.min(1, window._masterVolume + 0.06); audioEls.forEach(a=>{ if (a) a.volume = window._masterVolume; }); });
 
 /* initial UI */
-updateIndicator(false);
-console.log('Visuell layout: klar. Knappar i bottenpanel, inget fokus-ring, inga stora skuggor.');
-
+updateAllUI();
+console.log('Ready — fixes applied: tokens visible, reader transparent, controls contrast fixed.');
 </script>
 </body>
 </html>
