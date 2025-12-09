@@ -138,7 +138,68 @@ const AUDIO_FILES = [
   'https://raw.githubusercontent.com/StoneMarble303/THEAUDIOCUBE/main/Martin%20Roth%20-%20An%20Analog%20Guy%20in%20a%20Digital%20World%20-%2001%20Escape.mp3',
   'https://raw.githubusercontent.com/StoneMarble303/THEAUDIOCUBE/main/audio/track3.mp3'
 ];
-const audioEls = AUDIO_FILES.map(u => { const a = new Audio(); if(u){ a.src=u; a.preload='auto'; } return a; });
+
+const audioEls = [null, null, null];
+
+async function initAudioSources(){
+  for (let i = 0; i < AUDIO_FILES.length; i++){
+    const url = AUDIO_FILES[i];
+    audioEls[i] = new Audio(); // placeholder element
+
+    console.log('[audio init] checking url', i, url);
+    try{
+      // HEAD check first (some hosts may not support HEAD, then we fall back to GET)
+      let ok = false;
+      try {
+        const head = await fetch(url, { method: 'HEAD' });
+        ok = head.ok;
+        console.log(`[audio init] HEAD status for track ${i+1}:`, head.status);
+      } catch(headErr){
+        console.warn(`[audio init] HEAD failed for ${url} — trying GET`, headErr);
+      }
+
+      // If HEAD didn't return ok, try a lightweight GET for sanity
+      if(!ok){
+        const r = await fetch(url, { method: 'GET' });
+        if (!r.ok) {
+          console.warn(`[audio init] GET returned ${r.status} for ${url}`);
+          continue; // leave audioEls[i] as empty audio (no src)
+        }
+        // if GET ok, create blob URL to avoid MIME/CORS surprises
+        const blob = await r.blob();
+        const objectUrl = URL.createObjectURL(blob);
+        audioEls[i].src = objectUrl;
+        audioEls[i].preload = 'auto';
+        console.log(`[audio init] loaded track ${i+1} via blob URL`);
+      } else {
+        // HEAD said ok: we still fetch blob for most robust playback (avoids some CORS/content-type problems)
+        try {
+          const r2 = await fetch(url);
+          if (!r2.ok) { console.warn(`[audio init] fetch (after HEAD) returned ${r2.status} for ${url}`); continue; }
+          const blob2 = await r2.blob();
+          const objectUrl2 = URL.createObjectURL(blob2);
+          audioEls[i].src = objectUrl2;
+          audioEls[i].preload = 'auto';
+          console.log(`[audio init] loaded track ${i+1} via blob (HEAD ok)`);
+        } catch(fetchErr){
+          console.warn(`[audio init] fetch after HEAD failed for ${url}`, fetchErr);
+          // last resort: set direct src (may be blocked by CORS), but set it to try
+          audioEls[i].src = url;
+          audioEls[i].preload = 'auto';
+        }
+      }
+    } catch(err){
+      console.error('[audio init] unexpected error for', url, err);
+      // keep audio element but without src
+    }
+
+    // debug: if audio has no src, mark it
+    if (!audioEls[i].src) {
+      console.warn(`[audio init] WARNING: track ${i+1} has no usable src (check URL/CORS).`);
+    }
+  }
+}
+initAudioSources();
 
 /* ============================
    State + refs
