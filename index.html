@@ -1,0 +1,648 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Cube Music Prototype — Version 1 (2D)</title>
+<style>
+  :root{
+    --bg: #0e0f12;
+    --card: #0f1720;
+    --accent: #7bd389;
+    --glass: rgba(255,255,255,0.03);
+    font-family: Inter, Roboto, system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  body{
+    margin:0;
+    background:linear-gradient(180deg,#071021 0%, #08111a 100%);
+    color:#e6eef8;
+    display:flex;
+    min-height:100vh;
+    align-items:flex-start;
+    justify-content:center;
+    padding:28px;
+    box-sizing:border-box;
+  }
+  .wrap{
+    width:980px;
+    display:grid;
+    grid-template-columns: 420px 1fr;
+    gap:24px;
+  }
+
+  /* Left: Cube */
+  .panel{
+    background:var(--card);
+    border-radius:16px;
+    padding:18px;
+    box-shadow: 0 10px 30px rgba(2,6,23,0.6);
+  }
+  .cube-area{
+    background:var(--glass);
+    border-radius:12px;
+    height:420px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    position:relative;
+    overflow:hidden;
+    border:1px solid rgba(255,255,255,0.03);
+  }
+
+  .cube{
+    width:320px;
+    height:320px;
+    background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+    border-radius:12px;
+    position:relative;
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap:6px;
+    padding:12px;
+    box-sizing:border-box;
+    align-items:stretch;
+    justify-items:stretch;
+  }
+
+  .zone{
+    background: linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.0));
+    border-radius:8px;
+    border:1px dashed rgba(255,255,255,0.04);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    position:relative;
+    transition: box-shadow .18s, transform .12s;
+  }
+  .zone.active {
+    box-shadow: 0 6px 30px rgba(0,0,0,0.6), 0 0 30px var(--glow);
+    transform: scale(1.02);
+  }
+  .zone .label{
+    position:absolute;
+    top:8px;
+    left:10px;
+    font-size:12px;
+    opacity:.9;
+  }
+
+  /* Right: Controls / Tokens */
+  .controls{
+    padding:10px 16px;
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+  }
+  .tokens{
+    display:flex;
+    gap:10px;
+    margin-bottom:6px;
+  }
+  .token{
+    background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+    border-radius:10px;
+    padding:10px 12px;
+    width:120px;
+    cursor:grab;
+    box-shadow: 0 6px 16px rgba(2,6,23,0.5);
+    user-select:none;
+    border:1px solid rgba(255,255,255,0.03);
+  }
+  .token:active{ cursor:grabbing; }
+  .token .title{ font-weight:600; font-size:15px; margin-bottom:6px;}
+  .token .desc{ font-size:12px; opacity:.85 }
+
+  .mixers{
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    margin-top:6px;
+  }
+  .mixer{
+    background:rgba(255,255,255,0.02);
+    padding:8px;
+    border-radius:10px;
+    display:flex;
+    gap:12px;
+    align-items:center;
+  }
+  .mixer label{ width:72px; font-size:13px; }
+  .mixer input[type=range]{ flex:1; -webkit-appearance:none; height:6px; border-radius:6px; background:rgba(255,255,255,0.06); }
+
+  .topbar{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:12px;
+  }
+  .bpm{
+    display:flex;
+    gap:8px;
+    align-items:center;
+  }
+  .help{
+    font-size:13px;
+    color:rgba(230,238,248,0.75);
+    opacity:0.9;
+  }
+
+  footer { margin-top:10px; color:rgba(230,238,248,0.6); font-size:12px; }
+
+  /* Pulse lights */
+  .pulse{
+    position:absolute;
+    inset:0;
+    border-radius:8px;
+    mix-blend-mode:screen;
+    pointer-events:none;
+    opacity:0;
+    transition: opacity .12s;
+    box-shadow:0 0 30px rgba(255,255,255,0.0);
+  }
+
+  .small-note{ font-size:12px; color:rgba(230,238,248,0.7) }
+
+  @media (max-width:1000px){
+    .wrap{ grid-template-columns: 1fr; width:100%; }
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="panel">
+      <div class="topbar">
+        <div>
+          <h3 style="margin:0 0 6px 0;">Cube — Interaktiv prototyp</h3>
+          <div class="small-note">Dra tokens till zonerna. Loops är syncade och genereras i browsern.</div>
+        </div>
+        <div class="bpm">
+          <label style="font-size:13px;">BPM</label>
+          <input id="bpm" type="number" value="120" min="60" max="180" style="width:72px; padding:6px; border-radius:8px; border:1px solid rgba(255,255,255,0.04); background:transparent; color:inherit;">
+        </div>
+      </div>
+
+      <div class="cube-area">
+        <div class="cube" id="cube">
+          <div class="zone" data-zone="0"><div class="label">Zone 1</div></div>
+          <div class="zone" data-zone="1"><div class="label">Zone 2</div></div>
+          <div class="zone" data-zone="2"><div class="label">Zone 3</div></div>
+          <div class="zone" data-zone="3"><div class="label">Zone 4</div></div>
+
+          <div class="pulse" id="pulseLayer"></div>
+        </div>
+      </div>
+
+      <footer>
+        <div>Tempo-synk | Direkt start vid nästa takt | Simulerad ljudmotor</div>
+      </footer>
+    </div>
+
+    <div class="panel controls">
+      <div>
+        <h4 style="margin:2px 0 8px 0;">Tokens</h4>
+        <div class="tokens">
+          <div class="token" draggable="true" data-token="bass" id="token-bass">
+            <div class="title">BASS</div>
+            <div class="desc">Djup loop — låg frekvens</div>
+          </div>
+          <div class="token" draggable="true" data-token="melody" id="token-melody">
+            <div class="title">MELODY</div>
+            <div class="desc">Lead / synth</div>
+          </div>
+          <div class="token" draggable="true" data-token="drums" id="token-drums">
+            <div class="title">DRUMS</div>
+            <div class="desc">Kick + hi-hat loop</div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <h4 style="margin:2px 0 8px 0;">Mixer</h4>
+        <div class="mixers">
+          <div class="mixer">
+            <label>BASS</label>
+            <input class="gain" data-track="bass" type="range" min="0" max="1" step="0.01" value="0.9">
+          </div>
+          <div class="mixer">
+            <label>MELODY</label>
+            <input class="gain" data-track="melody" type="range" min="0" max="1" step="0.01" value="0.8">
+          </div>
+          <div class="mixer">
+            <label>DRUMS</label>
+            <input class="gain" data-track="drums" type="range" min="0" max="1" step="0.01" value="1">
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:8px;">
+        <button id="stopAll" style="padding:8px 12px; border-radius:8px; border:0; background:#ff5c5c; color:white; cursor:pointer;">Stoppa allt</button>
+        <div style="height:6px"></div>
+        <div class="help">Tips: släpp en token i en zon för att aktivera. Ta bort genom att dra token utanför cuben.</div>
+      </div>
+    </div>
+  </div>
+
+<script>
+/* Cube interactive prototype — audio generated with WebAudio
+   - Loop length: 4 takter (4 sekunder vid 60 BPM * 120 BPM = 2s? We'll compute using BPM)
+   - We schedule loops to start at bar boundaries for tight sync.
+*/
+
+const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+let audioCtx = null;
+const tracks = {
+  bass: {gainNode:null, playing:false, scheduledStops:[], nodeGroup:[]},
+  melody: {gainNode:null, playing:false, scheduledStops:[], nodeGroup:[]},
+  drums: {gainNode:null, playing:false, scheduledStops:[], nodeGroup:[]}
+};
+let loopBars = 2; // number of bars per loop (you can change)
+let beatsPerBar = 4;
+let isRunning = false;
+let startTime = 0;
+let tempoInput = document.getElementById('bpm');
+
+function ensureAudio() {
+  if (!audioCtx) {
+    audioCtx = new AudioContextClass();
+    // Create master gain
+    masterGain = audioCtx.createGain();
+    masterGain.gain.value = 0.9;
+    masterGain.connect(audioCtx.destination);
+
+    // Create track gains
+    for (let k of Object.keys(tracks)) {
+      const g = audioCtx.createGain();
+      g.gain.value = 0.9;
+      g.connect(masterGain);
+      tracks[k].gainNode = g;
+    }
+
+    // transport
+    startTime = audioCtx.currentTime + 0.05;
+    isRunning = true;
+  }
+}
+
+// convert BPM to seconds per beat
+function secondsPerBeat() {
+  const bpm = Math.max(60, Math.min(200, parseFloat(tempoInput.value)||120));
+  return 60.0 / bpm;
+}
+function loopDuration() {
+  return secondsPerBeat() * beatsPerBar * loopBars;
+}
+
+// simple synth generators for each track
+function scheduleBass(startAt) {
+  const dur = loopDuration();
+  const osc = audioCtx.createOscillator();
+  const env = audioCtx.createGain();
+  osc.type = 'sawtooth';
+  // simple riff: two notes
+  const now = startAt;
+  osc.frequency.setValueAtTime(55, now); // A1
+  osc.detune.setValueAtTime(0, now);
+  env.gain.setValueAtTime(0, now);
+  env.gain.linearRampToValueAtTime(0.9, now + 0.02);
+  env.gain.setValueAtTime(0.9, now + dur - 0.08);
+  env.gain.linearRampToValueAtTime(0.0, now + dur);
+
+  const filter = audioCtx.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.value = 400;
+  filter.Q.value = 1;
+
+  osc.connect(filter);
+  filter.connect(env);
+  env.connect(tracks.bass.gainNode);
+
+  osc.start(now);
+  osc.stop(now + dur + 0.05);
+
+  // store nodes to clear if needed
+  tracks.bass.nodeGroup.push({osc, env, filter});
+}
+
+function scheduleMelody(startAt) {
+  const dur = loopDuration();
+  const now = startAt;
+  const gain = audioCtx.createGain();
+  const osc = audioCtx.createOscillator();
+  osc.type = 'triangle';
+  // melodic pattern
+  const notes = [440, 523.25, 392, 659.25]; // A4, C5, G4, E5
+  const step = dur / notes.length;
+  gain.gain.setValueAtTime(0.0, now);
+  gain.gain.linearRampToValueAtTime(0.75, now + 0.01);
+
+  osc.connect(gain);
+  gain.connect(tracks.melody.gainNode);
+
+  osc.start(now);
+  for (let i=0;i<notes.length;i++){
+    osc.frequency.setValueAtTime(notes[i], now + i*step);
+  }
+  osc.stop(now + dur + 0.05);
+
+  tracks.melody.nodeGroup.push({osc,gain});
+}
+
+function scheduleDrums(startAt) {
+  const dur = loopDuration();
+  const now = startAt;
+  const step = secondsPerBeat(); // quarter notes
+  // Kick pattern: strong on 1 and 3
+  const kickTimes = [0, 2*step];
+  // Hi-hat pattern: 8th notes
+  const hhCount = Math.floor(dur / (step/2));
+  // Generate noise buffer for hats
+  const bufferSize = audioCtx.sampleRate * 0.02;
+  const noiseBuf = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+  const data = noiseBuf.getChannelData(0);
+  for (let i=0;i<data.length;i++) data[i] = (Math.random()*2-1) * Math.pow(1 - i/data.length, 2);
+
+  // schedule kicks
+  kickTimes.forEach((tOff)=>{
+    const tNow = now + tOff;
+    const osc = audioCtx.createOscillator();
+    osc.type = 'sine';
+    const env = audioCtx.createGain();
+    osc.frequency.setValueAtTime(120, tNow);
+    env.gain.setValueAtTime(1, tNow);
+    env.gain.exponentialRampToValueAtTime(0.001, tNow + 0.25);
+    osc.connect(env);
+    env.connect(tracks.drums.gainNode);
+    osc.start(tNow);
+    osc.stop(tNow + 0.26);
+    tracks.drums.nodeGroup.push({osc,env});
+  });
+
+  // schedule hats
+  for (let i=0;i<hhCount;i++){
+    const tNow = now + i*(step/2);
+    const src = audioCtx.createBufferSource();
+    src.buffer = noiseBuf;
+    const g = audioCtx.createGain();
+    g.gain.setValueAtTime(0.0001, tNow);
+    g.gain.linearRampToValueAtTime(0.18, tNow + 0.001);
+    g.gain.exponentialRampToValueAtTime(0.0001, tNow + 0.06);
+    src.connect(g);
+    g.connect(tracks.drums.gainNode);
+    src.start(tNow);
+    src.stop(tNow + 0.07);
+    tracks.drums.nodeGroup.push({src,g});
+  }
+}
+
+// scheduler tick: schedule next loop boundaries
+let schedulerTimer = null;
+function startScheduler(){
+  if (!audioCtx) ensureAudio();
+  if (schedulerTimer) clearInterval(schedulerTimer);
+  schedulerTimer = setInterval(()=> {
+    // schedule next loop start if there are active tracks
+    const dur = loopDuration();
+    const now = audioCtx.currentTime;
+    // compute next bar boundary
+    const beatSec = secondsPerBeat();
+    const loopSec = dur;
+    // We align to multiples of loopSec starting from startTime
+    const elapsed = Math.max(0, now - startTime);
+    const loopsPassed = Math.floor(elapsed / loopSec);
+    const nextLoopStart = startTime + (loopsPassed + 1) * loopSec;
+    // if any track flagged as playing, schedule their audio at nextLoopStart
+    for (let tname of Object.keys(tracks)) {
+      if (tracks[tname].playing) {
+        // schedule generator to run at nextLoopStart
+        if (tname === 'bass') scheduleBass(nextLoopStart);
+        if (tname === 'melody') scheduleMelody(nextLoopStart);
+        if (tname === 'drums') scheduleDrums(nextLoopStart);
+      }
+    }
+    // visual pulse
+    const pulse = document.getElementById('pulseLayer');
+    pulse.style.opacity = 0.08;
+    setTimeout(()=> pulse.style.opacity = 0, 150);
+  }, 300); // check 3x per second
+}
+
+function stopScheduler(){
+  if (schedulerTimer) { clearInterval(schedulerTimer); schedulerTimer = null; }
+}
+
+// attach drag/drop logic and zone handling
+const tokens = document.querySelectorAll('.token');
+tokens.forEach(t => {
+  t.addEventListener('dragstart', (e)=> {
+    e.dataTransfer.setData('text/plain', e.target.dataset.token);
+    t.classList.add('dragging');
+    // ensure audio context created on user gesture
+    ensureAudio();
+  });
+  t.addEventListener('dragend', ()=> t.classList.remove('dragging'));
+});
+
+const zones = document.querySelectorAll('.zone');
+zones.forEach(z => {
+  z.addEventListener('dragover', (e)=> {
+    e.preventDefault();
+    z.classList.add('hover');
+  });
+  z.addEventListener('dragleave', (e)=> {
+    z.classList.remove('hover');
+  });
+  z.addEventListener('drop', (e)=> {
+    e.preventDefault();
+    z.classList.remove('hover');
+    const tokenType = e.dataTransfer.getData('text/plain');
+    handlePlaceToken(tokenType, z);
+  });
+});
+
+// track of which zone has which token (can be multiple tokens on diff zones)
+const zoneState = {}; // zoneIdx -> tokenType
+
+function handlePlaceToken(tokenType, zoneEl) {
+  const zoneIdx = zoneEl.dataset.zone|0;
+  // If this zone already has a token, swap out
+  if (zoneState[zoneIdx]) {
+    // remove previous
+    removeTokenFromZone(zoneIdx);
+  }
+  // place token visually
+  zoneState[zoneIdx] = tokenType;
+  zoneEl.classList.add('active');
+  // color mapping per token
+  const col = tokenColor(tokenType);
+  zoneEl.style.setProperty('--glow', col);
+  zoneEl.style.boxShadow = `0 8px 40px ${col}`;
+  // create a small chip inside zone to show token
+  const chip = document.createElement('div');
+  chip.className = 'chip';
+  chip.textContent = tokenType.toUpperCase();
+  chip.style.padding = '8px 10px';
+  chip.style.borderRadius = '8px';
+  chip.style.background = 'rgba(255,255,255,0.03)';
+  chip.style.fontWeight = '700';
+  chip.style.letterSpacing = '0.6px';
+  zoneEl.appendChild(chip);
+  chip.dataset.token = tokenType;
+  chip.style.zIndex = 5;
+
+  // start playing track: mark playing and schedule at next loop
+  if (!tracks[tokenType].playing) {
+    tracks[tokenType].playing = true;
+    // schedule an immediate generation for the current loop if just started
+    // ensure scheduler is running
+    if (!schedulerTimer) startScheduler();
+    // also schedule sound for current loop if none exists (so user hears soon)
+    // but we will schedule at next boundary in scheduler anyway
+  }
+}
+
+function removeTokenFromZone(zoneIdx) {
+  const token = zoneState[zoneIdx];
+  if (!token) return;
+  const zoneEl = document.querySelector('.zone[data-zone="'+zoneIdx+'"]');
+  zoneEl.classList.remove('active');
+  zoneEl.style.removeProperty('--glow');
+  // remove chip
+  const chip = zoneEl.querySelector('.chip');
+  if (chip) zoneEl.removeChild(chip);
+  delete zoneState[zoneIdx];
+  // if no other zone uses this token, stop track
+  const stillUsed = Object.values(zoneState).includes(token);
+  if (!stillUsed) {
+    stopTrack(token);
+  }
+}
+
+// token color helper
+function tokenColor(name) {
+  if (name === 'bass') return 'rgba(40,160,220,0.9)';
+  if (name === 'melody') return 'rgba(240,210,90,0.95)';
+  if (name === 'drums') return 'rgba(220,90,80,0.95)';
+  return 'rgba(255,255,255,0.7)';
+}
+
+// stop a track gracefully: set playing=false and clear scheduled nodes after current loop
+function stopTrack(name) {
+  if (!tracks[name]) return;
+  tracks[name].playing = false;
+  // remove lingering scheduled nodes at next safe time — we'll simply let them stop naturally
+  // additionally, purge nodeGroup references that have finished
+  setTimeout(()=> {
+    // attempt to disconnect nodes (cleanup)
+    tracks[name].nodeGroup.forEach(obj => {
+      for (let k in obj) {
+        try {
+          if (obj[k] && typeof obj[k].disconnect === 'function') obj[k].disconnect();
+        } catch(e){}
+      }
+    });
+    tracks[name].nodeGroup = [];
+  }, (loopDuration()+0.2) * 1000);
+  // if no tracks left playing, stop scheduler after one loop
+  if (!Object.keys(tracks).some(t=>tracks[t].playing)) {
+    setTimeout(()=> {
+      if (!Object.keys(tracks).some(t=>tracks[t].playing)) {
+        stopScheduler();
+      }
+    }, loopDuration()*1000 + 200);
+  }
+}
+
+// allow dragging chips out to remove
+document.addEventListener('dragstart', (e)=>{
+  // if dragging chip (child inside zone)
+  if (e.target && e.target.classList.contains('chip')) {
+    e.dataTransfer.setData('text/plain', 'chip');
+    e.target.classList.add('dragging-chip');
+  }
+});
+document.addEventListener('dragend', (e)=>{
+  const el = document.querySelector('.chip.dragging-chip');
+  if (el) el.classList.remove('dragging-chip');
+});
+// allow dropping outside cube to remove
+document.body.addEventListener('dragover', (e)=> e.preventDefault());
+document.body.addEventListener('drop', (e)=> {
+  const dt = e.dataTransfer.getData('text/plain');
+  if (dt === 'chip') {
+    // find the dragging chip and remove it and stop track if unused
+    const chip = document.querySelector('.chip.dragging-chip') || document.querySelector('.chip');
+    if (!chip) return;
+    // find parent zone
+    const parent = chip.parentElement;
+    if (parent && parent.classList.contains('zone')) {
+      const zoneIdx = parent.dataset.zone|0;
+      removeTokenFromZone(zoneIdx);
+    }
+    try{ chip.remove(); }catch(e){}
+  }
+});
+
+// mixer sliders
+document.querySelectorAll('.gain').forEach(inp => {
+  inp.addEventListener('input', (e)=> {
+    const t = e.target.dataset.track;
+    const v = parseFloat(e.target.value);
+    if (tracks[t] && tracks[t].gainNode) tracks[t].gainNode.gain.value = v;
+  });
+});
+
+// stop all button
+document.getElementById('stopAll').addEventListener('click', ()=>{
+  // clear zone UI
+  document.querySelectorAll('.zone').forEach(z=> {
+    z.classList.remove('active');
+    z.style.removeProperty('--glow');
+    const chip = z.querySelector('.chip');
+    if (chip) chip.remove();
+  });
+  // stop audio nodes
+  for (let k of Object.keys(tracks)) {
+    tracks[k].playing = false;
+    tracks[k].nodeGroup.forEach(obj => {
+      for (let n in obj) {
+        try { if (obj[n] && typeof obj[n].stop === 'function') obj[n].stop(); } catch(e){}
+        try { if (obj[n] && typeof obj[n].disconnect === 'function') obj[n].disconnect(); } catch(e){}
+      }
+    });
+    tracks[k].nodeGroup = [];
+  }
+  stopScheduler();
+});
+
+// when user changes BPM, restart transport timings safely
+tempoInput.addEventListener('change', ()=>{
+  // nothing heavy — scheduler reads tempo each tick.
+});
+
+// small UX: clicking zone toggles first token in token list if none placed
+document.querySelectorAll('.zone').forEach((z,i)=>{
+  z.addEventListener('click', ()=>{
+    if (!zoneState[i]) {
+      // place 'bass' by default for quick testing
+      handlePlaceToken('bass', z);
+    } else {
+      removeTokenFromZone(i);
+    }
+  });
+});
+
+// initial notes: resume audio on first user gesture (handled by dragstart) — but add fallback
+document.body.addEventListener('pointerdown', function once(){
+  if (!audioCtx) {
+    // create but mute to avoid surprise sound
+    ensureAudio();
+    // stop immediately until tokens placed
+    stopScheduler();
+  }
+  document.body.removeEventListener('pointerdown', once);
+});
+
+</script>
+</body>
+</html>
