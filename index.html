@@ -3,57 +3,128 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>The Audio Cube — SVG Player</title>
+<title>The CUBE — Music player prototype</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <style>
-  :root{ --bg:#071017; --card:#0f1720; --muted:#9fb6c7; }
-  html,body{height:100%; margin:0; background:linear-gradient(180deg,#08141a,#041016); color:#e6eef8; font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial;}
-  .wrap{ max-width:1240px; margin:24px auto; display:grid; grid-template-columns: 1fr 360px; gap:20px; padding:0 18px; box-sizing:border-box; }
-  .panel{ background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); padding:14px; border-radius:12px; box-shadow:0 12px 34px rgba(2,6,23,0.6); border:1px solid rgba(255,255,255,0.03); }
-  .svg-wrap{ height:880px; display:flex; align-items:center; justify-content:center; position:relative; overflow:hidden; }
-  /* cassette element — absolute DOM that contains the small svg */
+  /* Fonts: system fallback to avoid external loads in repo preview */
+  :root{
+    --bg:#000;
+    --panel-bg:#f6f6f6;
+    --muted:#707070;
+    --accent:#1f7aef;
+  }
+  html,body{height:100%;margin:0;background:var(--bg);color:#fff;font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial;}
+  /* overall layout like your screenshot */
+  .stage{
+    max-width:1320px;
+    margin:28px auto;
+    display:grid;
+    grid-template-columns: 740px 1fr;
+    gap:60px;
+    align-items:start;
+    padding:16px;
+    box-sizing:border-box;
+  }
+
+  /* LEFT: player column */
+  .player-wrap{ position:relative; }
+  .player{
+    width:740px;
+    background:linear-gradient(180deg,#f7f7f7,#ffffff);
+    border-radius:14px;
+    border:2px solid rgba(255,255,255,0.06);
+    box-shadow:0 8px 30px rgba(0,0,0,0.6);
+    padding:18px;
+    box-sizing:border-box;
+  }
+
+  /* the visible reader pad (inside the large card) matches your SVG sizes */
+  .reader-area{
+    width:700px;
+    height:700px;
+    margin:6px auto 12px auto;
+    display:flex;align-items:center;justify-content:center;
+    position:relative;
+  }
+  /* we embed your SVG and scale to fit */
+  #playerSVG{ width:700px;height:700px; display:block; }
+
+  /* controls row under the reader pad, matching your screenshot */
+  .controls-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:14px 26px;
+    background:linear-gradient(180deg,#fff,#fafafa);
+    border-radius:0 0 14px 14px;
+    box-shadow:inset 0 1px 0 rgba(0,0,0,0.03);
+    margin-top:6px;
+  }
+  .controls-left{ display:flex; align-items:center; gap:18px; }
+  .ctrl-btn{
+    width:54px;height:54px;border-radius:50%; background:linear-gradient(180deg,#f0f0f0,#eaeaea);
+    display:flex;align-items:center;justify-content:center;border:1px solid rgba(0,0,0,0.06); box-shadow:0 6px 18px rgba(0,0,0,0.08);
+  }
+  .ctrl-mid{ display:flex; gap:28px; align-items:center; color:var(--muted); font-size:14px; }
+  .volume{ display:flex; align-items:center; gap:8px; }
+
+  /* Right column: tokens */
+  .tokens-col{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:flex-start;
+    padding-top:80px;
+    gap:36px;
+  }
+
+  /* positions for three tokens to match screenshot: two top side-by-side and one centered below */
+  .tokens-grid{ width:320px; height:420px; position:relative; }
   .cassette{
     position:absolute;
     width:220px; height:197px;
-    pointer-events:auto;
-    z-index:40;
+    cursor:grab;
     touch-action:none;
     user-select:none;
-    cursor:grab;
-    transition:box-shadow .12s, transform .12s;
+    transition:transform .12s, box-shadow .12s, outline .12s;
+    z-index:80;
   }
   .cassette.dragging{ cursor:grabbing; transform:scale(1.02); box-shadow:0 34px 80px rgba(0,0,0,0.7); }
   .cassette svg{ width:100%; height:100%; display:block; }
-  .cassette .meta{
-    position:absolute; left:12px; top:10px; color:#666; font-size:13px; font-weight:700; pointer-events:none;
-  }
-  .loading-badge{ position:absolute; left:18px; top:18px; background:rgba(0,0,0,0.5); padding:8px 10px; border-radius:8px; display:flex; gap:8px; align-items:center; z-index:60; color:var(--muted); }
-  .loader{ width:12px; height:12px; border-radius:50%; border:2px solid rgba(255,255,255,0.18); border-top-color:#fff; animation:spin .9s linear infinite; }
-  @keyframes spin{ to{ transform:rotate(360deg);} }
-  /* Controls column */
-  .controls{ display:flex; flex-direction:column; gap:12px; }
-  .controls label{ font-size:13px; color:var(--muted); }
-  .queueView{ background:rgba(255,255,255,0.02); padding:10px; border-radius:8px; min-height:120px; color:var(--muted); font-size:13px; white-space:pre-wrap; }
-  .small{ font-size:13px; color:var(--muted); }
-  button{ background:#1f7aef; border:0; color:white; padding:8px 10px; border-radius:8px; cursor:pointer; }
-  @media (max-width:1000px){ .wrap{ grid-template-columns:1fr; } .svg-wrap{ height:680px; } .cassette{ width:170px; height:152px; } }
+  /* small text under the control icons like your screenshot */
+  .ctrl-labels{ display:flex; gap:38px; justify-content:flex-start; margin-top:8px; color:#d0d0d0; font-size:13px; margin-left:8px; }
+  .ctrl-labels div{ display:flex; flex-direction:column; align-items:center; gap:6px; min-width:60px; }
+  .ctrl-labels .dot{ width:2px; height:36px; background:#cc3f3f; margin-top:6px; }
+
+  /* queue box in right panel */
+  .queue-box{ margin-top:12px; background:rgba(255,255,255,0.02); padding:12px; border-radius:8px; color:#9fb6c7; font-size:13px; min-height:100px; white-space:pre-wrap; }
+
+  /* small responsive */
+  @media (max-width:1200px){ .stage{ grid-template-columns: 640px 1fr; } .player{ width:640px; } .reader-area{ width:600px;height:600px;} .tokens-grid{ transform:scale(.95);} }
+  @media (max-width:920px){ .stage{ grid-template-columns: 1fr; } .tokens-col{ padding-top:28px; } .player{ width:100%; } .reader-area{ width:92vw;height:92vw; } }
+
+  /* loading badge */
+  .loading-badge{ position:absolute; left:20px; top:20px; background:rgba(0,0,0,0.6); color:#fff; padding:8px 10px; border-radius:8px; z-index:200; display:flex; align-items:center; gap:8px; }
+  .loader{ width:12px;height:12px;border-radius:50%; border:2px solid rgba(255,255,255,0.18); border-top-color:#fff; animation:spin .9s linear infinite; }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+
+  /* small helper for labels under tokens */
+  .token-label{ color:#c0c0c0; font-size:15px; text-align:center; margin-top:8px; }
 </style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="panel">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-        <div>
-          <h3 style="margin:0;">The Audio Cube — Reader Pad</h3>
-          <div class="small">Reader pad = den gråa fyrkanten i SVG. Dra kassetter fritt. Lägg flera → köas. Lyft för att stoppa.</div>
-        </div>
-        <div class="small">BPM: <input id="bpm" type="number" value="120" min="40" max="240" style="width:72px;"></div>
-      </div>
+  <div style="padding-left:34px; padding-top:12px;">
+    <div style="color:#cfe7ff; font-weight:600; background:#000; display:inline-block; padding:6px 8px; border-radius:4px;">The CUBE Music player digital prototype</div>
+  </div>
 
-      <div class="svg-wrap" id="svgWrap">
-        <div class="loading-badge" id="loadingBadge" style="display:none"><div class="loader"></div><div>Loading…</div></div>
-
-        <!-- ---------- INLINED MAIN SVG (your 746x923 SVG) ---------- -->
-        <svg id="playerSVG" xmlns="http://www.w3.org/2000/svg" width="746" height="923" viewBox="0 0 746 923" preserveAspectRatio="xMidYMid meet">
+  <div class="stage" id="stage">
+    <!-- LEFT: player -->
+    <div class="player-wrap">
+      <div class="player">
+        <div class="reader-area" id="readerArea">
+          <!-- inlined main 746x923 SVG scaled by CSS above -->
+          <!-- (inserted below exactly as provided earlier) -->
+          <svg id="playerSVG" xmlns="http://www.w3.org/2000/svg" width="746" height="923" viewBox="0 0 746 923" preserveAspectRatio="xMidYMid meet">
   <defs>
     <filter id="Rectangle_3">
       <feOffset input="SourceAlpha"/>
@@ -108,61 +179,74 @@
     </g>
   </g>
 </svg>
-        <!-- ------------------------------------------------------------- -->
-        <!-- cassette DOMs will be injected by JS (they include the small cassette SVG) -->
+        </div>
+
+        <!-- controls row below the big player, visually like your screenshot -->
+        <div class="controls-row" aria-hidden="true">
+          <div class="controls-left">
+            <div class="ctrl-btn" id="powerBtn" title="On/Off">
+              <!-- simple glyph -->
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 3v10" stroke="#9aa" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="16" r="6" stroke="#c7c7c7" stroke-width="1.4" fill="none"/></svg>
+            </div>
+            <div style="width:36px"></div>
+            <div class="ctrl-mid">
+              <div style="width:28px"></div>
+            </div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
+            <div class="small">Shuffle</div>
+            <div style="font-size:20px;color:var(--muted)">⤯</div>
+          </div>
+
+          <div style="display:flex;align-items:center;gap:14px;">
+            <div style="display:flex;flex-direction:column;align-items:center;">
+              <div class="small">–</div>
+              <div style="height:28px"></div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;">
+              <div class="small">+</div>
+              <div style="height:28px"></div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
-    <div class="panel controls">
-      <div style="display:flex;justify-content:space-between;align-items:center;">
-        <h4 style="margin:0;">Kontroll & Queue</h4>
-        <div class="small">Volymer</div>
+    <!-- RIGHT: tokens column -->
+    <div class="tokens-col">
+      <div class="tokens-grid" id="tokensGrid">
+        <!-- three cassette positions (we position them absolute via JS initialPositions) -->
       </div>
 
-      <div class="controls">
-        <div><label>Track 1</label><input id="gain1" type="range" min="0" max="1" step="0.01" value="0.95"></div>
-        <div><label>Track 2</label><input id="gain2" type="range" min="0" max="1" step="0.01" value="0.95"></div>
-        <div><label>Track 3</label><input id="gain3" type="range" min="0" max="1" step="0.01" value="0.95"></div>
+      <div style="display:flex;flex-direction:column;align-items:center;margin-top:20px;">
+        <div class="token-label">on/off</div>
+      </div>
 
-        <div class="small">Spelar / kö</div>
-        <div class="queueView" id="queueView">Ingen kö</div>
-
-        <div style="display:flex;gap:8px;margin-top:10px;">
-          <button id="stopAll">Stoppa allt</button>
-          <button id="resetPositions">Återställ positioner</button>
-        </div>
-
-        <div style="height:10px;"></div>
-        <div class="small">Byt spår: ändra AUDIO_FILES-array i skriptet (sökfält nedan).</div>
+      <div style="margin-top:20px;width:320px;">
+        <div class="queue-box" id="queueView">Ingen kö</div>
       </div>
     </div>
   </div>
 
+  <!-- loading badge outside (JS toggles) -->
+  <div class="loading-badge" id="loadingBadge" style="display:none; left:60px; top:60px;"><div class="loader"></div><div>Loading…</div></div>
+
 <script>
-/* ---------------------------
-   Konfiguration: ersätt spår här om du vill
-   --------------------------- */
+/* ========== Config: use your raw URLs here ========== */
 const AUDIO_FILES = [
   'https://raw.githubusercontent.com/StoneMarble303/THEAUDIOCUBE/main/audio/track1.mp3',
   'https://raw.githubusercontent.com/StoneMarble303/THEAUDIOCUBE/main/Martin%20Roth%20-%20An%20Analog%20Guy%20in%20a%20Digital%20World%20-%2001%20Escape.mp3',
   'https://raw.githubusercontent.com/StoneMarble303/THEAUDIOCUBE/main/audio/track3.mp3'
 ];
+/* ========== setup audio elements ========== */
+const audioEls = AUDIO_FILES.map(u => { const a = new Audio(); if(u){ a.src=u; a.preload='auto'; } return a; });
 
-/* ---------------------------
-   Ljudkällor: skapa Audio-element
-   --------------------------- */
-const audioEls = AUDIO_FILES.map(url => {
-  const a = new Audio();
-  if (url) { a.src = url; a.preload = 'auto'; }
-  return a;
-});
-
-/* ---------------------------
-   State & DOM-referenser
-   --------------------------- */
-const svgWrap = document.getElementById('svgWrap');
+/* ========== state & refs ========== */
+const svgWrap = document.getElementById('readerArea');
 const playerSVG = document.getElementById('playerSVG');
-const padRectEl = playerSVG.getElementById('Rectangle_1'); // vår reader pad
+const padRectEl = playerSVG.getElementById('Rectangle_1'); // reader pad in SVG
+const tokensGrid = document.getElementById('tokensGrid');
 const loadingBadge = document.getElementById('loadingBadge');
 const queueView = document.getElementById('queueView');
 
@@ -170,11 +254,8 @@ let cassetteState = {}; // id -> {trackIndex, el, onPad, cached, playing, queued
 let playQueue = [];
 let currentPlayingId = null;
 
-/* ---------------------------
-   Cassette small-SVG (visual) — använder den du skickade
-   --------------------------- */
-const CASSETTE_SVG = `
-<svg xmlns="http://www.w3.org/2000/svg" width="220" height="197" viewBox="0 0 220 197">
+/* ========== small cassette SVG used as visuals ========== */
+const CASSETTE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="220" height="197" viewBox="0 0 220 197">
   <defs><clipPath id="clip-cassette"><rect width="220" height="197"/></clipPath></defs>
   <g clip-path="url(#clip-cassette)">
     <g transform="translate(-935 -138)">
@@ -199,48 +280,45 @@ const CASSETTE_SVG = `
   </g>
 </svg>`;
 
-/* ---------------------------
-   Skapa initiala kassetter (3)
-   --------------------------- */
-const initialPositions = [{x:24,y:36},{x:24,y:260},{x:24,y:480}];
-for (let i=0;i<3;i++){
+/* ========== create three cassette DOMs in the right grid ========== */
+const initialPositions = [
+  {left: 20, top: 8},    // top-left (Track1)
+  {left: 180, top: 8},   // top-right (Track2)
+  {left: 100, top: 210}  // bottom-center (Track3)
+];
+
+for(let i=0;i<3;i++){
   createCassette('cass'+(i+1), i, initialPositions[i]);
 }
 
-/* ---------------------------
-   Funktion: skapa kassett DOM och draggable
-   --------------------------- */
 function createCassette(id, trackIndex, pos){
   const wrapper = document.createElement('div');
   wrapper.className = 'cassette';
   wrapper.dataset.cid = id;
   wrapper.dataset.track = trackIndex;
-  wrapper.style.left = pos.x + 'px';
-  wrapper.style.top  = pos.y + 'px';
-  wrapper.innerHTML = CASSETTE_SVG + `<div class="meta">Cassette ${trackIndex+1}</div>`;
-  svgWrap.appendChild(wrapper);
+  wrapper.style.left = pos.left + 'px';
+  wrapper.style.top  = pos.top + 'px';
+  wrapper.innerHTML = CASSETTE_SVG;
+  tokensGrid.appendChild(wrapper);
   cassetteState[id] = { trackIndex, el:wrapper, onPad:false, cached:false, playing:false, queued:false };
   makeDraggable(wrapper);
 }
 
-/* ---------------------------
-   Draggable + magnet + drop logic
-   --------------------------- */
+/* ========== draggable + magnet + drop logic (same behaviour as before) ========== */
+function getPadRectScreen(){
+  const padBox = padRectEl.getBBox();
+  const svgRect = playerSVG.getBoundingClientRect();
+  const viewBox = playerSVG.viewBox.baseVal;
+  const scaleX = svgRect.width / viewBox.width;
+  const scaleY = svgRect.height / viewBox.height;
+  const left = svgRect.left + padBox.x * scaleX;
+  const top  = svgRect.top  + padBox.y * scaleY;
+  return { left, top, width: padBox.width * scaleX, height: padBox.height * scaleY, centerX:left + (padBox.x + padBox.width/2)*scaleX, centerY: top + (padBox.y + padBox.height/2)*scaleY };
+}
+
 function makeDraggable(elem){
   let dragging=false, pointerId=null, offset={x:0,y:0};
   const id = elem.dataset.cid;
-
-  function getPadRectScreen(){
-    // pad bbox in SVG coords -> convert to screen coords
-    const padBox = padRectEl.getBBox();
-    const svgRect = playerSVG.getBoundingClientRect();
-    const viewBox = playerSVG.viewBox.baseVal;
-    const scaleX = svgRect.width / viewBox.width;
-    const scaleY = svgRect.height / viewBox.height;
-    const left = svgRect.left + padBox.x * scaleX;
-    const top  = svgRect.top  + padBox.y * scaleY;
-    return { left, top, width: padBox.width * scaleX, height: padBox.height * scaleY, centerX:left + (padBox.x + padBox.width/2)*scaleX, centerY: top + (padBox.y + padBox.height/2)*scaleY };
-  }
 
   function onPointerDown(e){
     e.preventDefault();
@@ -248,7 +326,7 @@ function makeDraggable(elem){
     elem.classList.add('dragging');
     const r = elem.getBoundingClientRect();
     offset.x = e.clientX - r.left; offset.y = e.clientY - r.top;
-    // lifting behavior: if playing -> stop
+    // lifting behaviour: if playing -> stop
     const st = cassetteState[id];
     if (st.playing) stopCassette(id, true);
     elem.setPointerCapture(pointerId);
@@ -257,6 +335,7 @@ function makeDraggable(elem){
     if(!dragging || e.pointerId !== pointerId) return;
     let nx = e.clientX - offset.x;
     let ny = e.clientY - offset.y;
+
     const pad = getPadRectScreen();
     const dx = e.clientX - pad.centerX, dy = e.clientY - pad.centerY;
     const dist = Math.sqrt(dx*dx + dy*dy);
@@ -267,16 +346,18 @@ function makeDraggable(elem){
       ny = ny + (pad.centerY - e.clientY)*pull;
       elem.style.transform = 'scale(1.02)';
     } else elem.style.transform = '';
-    // bounds
-    const container = svgWrap.getBoundingClientRect();
-    nx = Math.max(container.left - 6, Math.min(nx, container.right - elem.offsetWidth + 6));
-    ny = Math.max(container.top - 6, Math.min(ny, container.bottom - elem.offsetHeight + 6));
-    elem.style.left = (nx - container.left) + 'px';
-    elem.style.top  = (ny - container.top) + 'px';
-    // visual inside detection
-    const centerX = nx + elem.offsetWidth/2;
-    const centerY = ny + elem.offsetHeight/2;
-    const inside = (centerX >= pad.left && centerX <= pad.left + pad.width && centerY >= pad.top && centerY <= pad.top + pad.height);
+
+    // constrain inside viewport of stage for a nicer feel
+    const stageRect = document.getElementById('stage').getBoundingClientRect();
+    nx = Math.max(stageRect.left - 6, Math.min(nx, stageRect.right - elem.offsetWidth + 6));
+    ny = Math.max(stageRect.top - 6, Math.min(ny, stageRect.bottom - elem.offsetHeight + 6));
+
+    elem.style.left = (nx - tokensGrid.getBoundingClientRect().left) + 'px';
+    elem.style.top  = (ny - tokensGrid.getBoundingClientRect().top) + 'px';
+
+    // inside pad detection for visual cue (we mark via outline)
+    const centerX = nx; const centerY = ny;
+    const inside = ( (e.clientX) >= pad.left && (e.clientX) <= pad.left + pad.width && (e.clientY) >= pad.top && (e.clientY) <= pad.top + pad.height );
     if (inside) elem.style.boxShadow = '0 34px 80px rgba(0,0,0,0.7), 0 0 30px rgba(30,140,220,0.06)';
     else elem.style.boxShadow = '0 18px 40px rgba(0,0,0,0.6)';
   }
@@ -289,20 +370,18 @@ function makeDraggable(elem){
     const pad = getPadRectScreen();
     const inside = (centerX >= pad.left && centerX <= pad.left + pad.width && centerY >= pad.top && centerY <= pad.top + pad.height);
     if (inside){
-      // snap a bit inside pad bounds
-      const container = svgWrap.getBoundingClientRect();
+      // snap a bit toward center of pad
+      const container = tokensGrid.getBoundingClientRect();
       const snapX = Math.max(pad.left + 12, Math.min(centerX, pad.left + pad.width - 12));
       const snapY = Math.max(pad.top + 12, Math.min(centerY, pad.top + pad.height - 12));
       elem.style.left = (snapX - container.left - rect.width/2) + 'px';
       elem.style.top  = (snapY - container.top - rect.height/2) + 'px';
-      // mark onPad
       cassetteState[id].onPad = true;
       if (!cassetteState[id].cached){
         showLoading(true);
         setTimeout(()=>{ cassetteState[id].cached = true; showLoading(false); handleDrop(id); }, 700 + Math.random()*700);
       } else handleDrop(id);
     } else {
-      // dropped outside
       if (cassetteState[id].onPad){
         cassetteState[id].onPad = false;
         removeFromQueue(id);
@@ -319,47 +398,33 @@ function makeDraggable(elem){
   window.addEventListener('pointerup', onPointerUp);
 }
 
-/* ---------------------------
-   Load UI helpers
-   --------------------------- */
-function showLoading(on){
-  loadingBadge.style.display = on ? 'flex' : 'none';
-}
+/* ========== load UI helpers ========== */
+function showLoading(on){ loadingBadge.style.display = on ? 'flex' : 'none'; }
 
-/* ---------------------------
-   Drop handling: start or queue
-   --------------------------- */
+/* ========== drop handling ========== */
 function handleDrop(cid){
   const st = cassetteState[cid];
-  if (!currentPlayingId){
-    startCassette(cid);
-  } else {
-    if (!st.queued){
-      st.queued = true; playQueue.push(cid); updateQueueView();
-    }
+  if (!currentPlayingId) startCassette(cid);
+  else {
+    if (!st.queued){ st.queued = true; playQueue.push(cid); updateQueueView(); }
   }
   updateCassetteUI(cid);
 }
 
-/* ---------------------------
-   Start/stop cassette playback
-   --------------------------- */
+/* ========== start/stop ========== */
 function startCassette(cid){
   const st = cassetteState[cid]; if(!st) return;
   const idx = st.trackIndex;
   const aud = audioEls[idx];
   if (aud && aud.src){
-    // set volume from controls
     aud.volume = getGainForIndex(idx);
     aud.currentTime = 0;
     aud.play().catch(e=>console.warn('play err',e));
     aud.onended = ()=>{ st.playing=false; currentPlayingId=null; startNextInQueue(); updateCassetteUI(cid); };
   } else {
-    // simulated duration fallback
     setTimeout(()=>{ st.playing=false; currentPlayingId=null; startNextInQueue(); updateCassetteUI(cid); }, 8000 + Math.random()*4000);
   }
-  st.playing = true;
-  currentPlayingId = cid;
+  st.playing = true; currentPlayingId = cid;
   if (st.queued){ st.queued=false; playQueue = playQueue.filter(x=>x!==cid); }
   updateQueueView(); updateCassetteUI(cid);
 }
@@ -373,9 +438,7 @@ function stopCassette(cid, dueToLift){
   updateQueueView(); updateCassetteUI(cid);
 }
 
-/* ---------------------------
-   Queue management
-   --------------------------- */
+/* ========== queue management ========== */
 function startNextInQueue(){
   if (currentPlayingId) return;
   while (playQueue.length){
@@ -385,15 +448,9 @@ function startNextInQueue(){
   }
   updateQueueView();
 }
-function removeFromQueue(cid){
-  playQueue = playQueue.filter(x=>x!==cid);
-  if (cassetteState[cid]) cassetteState[cid].queued=false;
-  updateQueueView();
-}
+function removeFromQueue(cid){ playQueue = playQueue.filter(x=>x!==cid); if (cassetteState[cid]) cassetteState[cid].queued=false; updateQueueView(); }
 
-/* ---------------------------
-   UI updates
-   --------------------------- */
+/* ========== UI updates ========== */
 function updateQueueView(){
   if (!currentPlayingId && playQueue.length===0){ queueView.textContent='Ingen kö'; return; }
   let out='';
@@ -404,33 +461,25 @@ function updateQueueView(){
 function updateCassetteUI(cid){
   const st = cassetteState[cid]; if(!st) return;
   const el = st.el;
-  // add small overlay text by removing existing meta if present and setting color via CSS not needed
-  // we'll mark by border highlight if playing/queued
   if (st.playing) el.style.outline = '3px solid rgba(40,200,220,0.9)';
   else if (st.queued) el.style.outline = '2px dashed rgba(200,200,200,0.15)';
   else if (st.onPad && st.cached) el.style.outline = '1px solid rgba(255,255,255,0.03)';
   else el.style.outline = 'none';
 }
 
-/* ---------------------------
-   Volume controls
-   --------------------------- */
+/* ========== volume controls ========== */
 function getGainForIndex(i){ const el = document.getElementById('gain'+(i+1)); return el ? parseFloat(el.value) : 0.9; }
-['gain1','gain2','gain3'].forEach(id=>{
-  document.getElementById(id).addEventListener('input', ()=>{
-    for (let k in cassetteState){
-      const st = cassetteState[k];
-      if (st && st.playing){
-        const idx = st.trackIndex;
-        if (audioEls[idx] && audioEls[idx].src) audioEls[idx].volume = getGainForIndex(idx);
-      }
+['gain1','gain2','gain3'].forEach(id=>document.getElementById(id).addEventListener('input', ()=>{
+  for (let k in cassetteState){
+    const st = cassetteState[k];
+    if (st && st.playing){
+      const idx = st.trackIndex;
+      if (audioEls[idx] && audioEls[idx].src) audioEls[idx].volume = getGainForIndex(idx);
     }
-  });
-});
+  }
+}));
 
-/* ---------------------------
-   Stop all & reset UI
-   --------------------------- */
+/* ========== Stop all & reset positions ========== */
 document.getElementById('stopAll').addEventListener('click', ()=>{
   for (let a of audioEls){ try{ a.pause(); a.currentTime=0; }catch(e){} }
   Object.keys(cassetteState).forEach(k => { const s=cassetteState[k]; s.playing=false; s.queued=false; s.onPad=false; updateCassetteUI(k); });
@@ -441,20 +490,17 @@ document.getElementById('resetPositions').addEventListener('click', ()=>{
   const keys = Object.keys(cassetteState);
   for (let i=0;i<keys.length;i++){
     const k = keys[i];
-    cassetteState[k].el.style.left = initialPositions[i].x + 'px';
-    cassetteState[k].el.style.top  = initialPositions[i].y + 'px';
+    cassetteState[k].el.style.left = initialPositions[i].left + 'px';
+    cassetteState[k].el.style.top  = initialPositions[i].top + 'px';
   }
-  // also stop audio
   document.getElementById('stopAll').click();
 });
 
-/* ---------------------------
-   Initial UI refresh
-   --------------------------- */
+/* ========== initial ui refresh ========== */
 Object.keys(cassetteState).forEach(k=>updateCassetteUI(k));
 updateQueueView();
 
-console.log('Player ready. Lägg in egna filer i AUDIO_FILES om du vill.');
+console.log('CUBE player ready.');
 </script>
 </body>
 </html>
