@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>The CUBE — prototyp (knappar inuti SVG + synliga kassetter)</title>
+<title>The CUBE — prototyp (snap-fix)</title>
 <style>
   :root{
     --bg:#e7e7e7;
@@ -21,23 +21,18 @@
   .player-wrap{ width:720px; margin:0; }
   .tokens-col{ min-height:720px; padding-top:12px; display:flex; flex-direction:column; gap:12px; align-items:flex-start; }
 
-  /* tokensGrid (where cassettes are placed) */
   .tokens-grid { width:320px; height:720px; position:relative; border-radius:6px; background:transparent; }
 
-  /* cassette */
   .cassette { position:absolute; width:193px; height:193px; cursor:grab; user-select:none; touch-action:none; transition: transform .12s, box-shadow .12s, outline .12s; background:transparent; z-index:40; }
   .cassette.dragging{ cursor:grabbing; transform:scale(1.02); }
-  .cassette svg rect { display:none !important; } /* remove any big rects */
+  .cassette svg rect { display:none !important; }
   .cassette.playing { outline:4px solid rgba(40,200,220,0.95); box-shadow:0 30px 60px rgba(30,160,220,0.08); }
   .cassette.queued  { outline:2px dashed rgba(200,200,200,0.12); box-shadow:0 18px 30px rgba(0,0,0,0.06); }
 
-  /* subtle helper text */
   .hint{ color:#6e6e6e; font-size:13px; }
 
-  /* remove browser focus ring for svg and children */
   svg#playerSVG, svg#playerSVG * { outline:none !important; -webkit-tap-highlight-color: transparent; }
 
-  /* small responsive */
   @media (max-width:1000px){
     .layout{ grid-template-columns: 1fr; }
   }
@@ -48,11 +43,8 @@
     <div class="top-title">The cube digital prototype 1</div>
 
     <div class="layout">
-      <!-- LEFT: player with embedded buttons (inside SVG) -->
+      <!-- LEFT: player with embedded buttons -->
       <div class="player-wrap">
-        <!-- Player SVG: I injected 4 button groups into this SVG at the white footer area.
-             Each group has id: svgBtn_power, svgBtn_shuffle, svgBtn_volDown, svgBtn_volUp.
-             They are clickable and animate on click in the JS below. -->
         <svg id="playerSVG" tabindex="-1" xmlns="http://www.w3.org/2000/svg" width="552" height="673" viewBox="0 0 552 673" preserveAspectRatio="xMidYMid meet">
   <defs>
     <filter id="Rectangle_3"><feOffset input="SourceAlpha"/><feGaussianBlur stdDeviation="1.5" result="blur"/><feFlood result="color"/><feComposite operator="out" in="SourceGraphic" in2="blur"/><feComposite operator="in" in="color"/><feComposite operator="in" in2="SourceGraphic"/></filter>
@@ -60,13 +52,11 @@
   </defs>
 
   <g id="The_cube_digital_prototype_1_1" clip-path="url(#clip-The_cube_digital_prototype_1_1)">
-    <!-- outer body -->
     <g id="Playyer_body" transform="translate(2 2)" fill="#fff" stroke="#a8a8a8" stroke-width="1">
       <rect width="547" height="671" rx="12" stroke="none"/>
       <rect x="0.5" y="0.5" width="546" height="670" rx="11.5" fill="none"/>
     </g>
 
-    <!-- reader pad -->
     <g id="REader_pad" transform="translate(-291 -175)">
       <g data-type="innerShadowGroup">
         <rect id="Rectangle_3-2" data-name="Rectangle 3" width="535" height="535" rx="8" transform="translate(299 183)" fill="#f7f7f7" opacity="0.997"/>
@@ -75,18 +65,14 @@
         </g>
       </g>
       <g id="Ellipse_21" transform="translate(321 204)" fill="none" stroke="#e5e5e5" stroke-width="1">
-        <circle cx="246.5" cy="246.5" r="246.5"/><circle cx="246.5" cy="246.5" r="246" fill="none"/>
+        <!-- We will use the inner circle of this group to compute screen rect -->
+        <circle id="pad_main_circle" cx="246.5" cy="246.5" r="246.5"/><circle cx="246.5" cy="246.5" r="246" fill="none"/>
       </g>
     </g>
 
     <text id="Reader_pad-2" transform="translate(26 33)" fill="#707070" font-size="15" font-family="HelveticaNeue, Helvetica Neue"><tspan x="0" y="0">Reader pad</tspan></text>
 
-    <!-- ===========================
-         Embedded Controls (placed on the white bottom of the SVG)
-         IDs used by JS: svgBtn_power, svgBtn_shuffle, svgBtn_volDown, svgBtn_volUp
-         =========================== -->
     <g id="svgControls" transform="translate(0,560)">
-      <!-- power button group, placed left -->
       <g id="svgBtn_power" class="svg-btn" transform="translate(36,12)" cursor="pointer">
         <circle cx="24" cy="24" r="22" fill="#fff" stroke="#a8a8a8" stroke-width="1.2" />
         <path d="M24 12v9" stroke="#111" stroke-width="1.6" stroke-linecap="round" fill="none"/>
@@ -94,20 +80,17 @@
         <circle id="svg_power_light" cx="52" cy="8" r="4" fill="#dff6df" opacity="1" />
       </g>
 
-      <!-- shuffle -->
       <g id="svgBtn_shuffle" class="svg-btn" transform="translate(320,22)" cursor="pointer">
         <circle cx="14" cy="14" r="14" fill="#fff" stroke="#a8a8a8" stroke-width="1.2" />
-        <path d="M6 12 L14 12 C18 12 20 12 22 13.5" stroke="#111" stroke-width="1.1" fill="none" stroke-linecap="round"/>
-        <path d="M22 9 L26 5 L22 1" stroke="#111" stroke-width="1.1" fill="none" stroke-linecap="round"/>
+        <path d="M6 12 L14 12 C18 12 20 12 22 13.5" stroke="#111" stroke-width="1.1" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M22 9 L26 5 L22 1" stroke="#111" stroke-width="1.1" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
       </g>
 
-      <!-- vol down -->
       <g id="svgBtn_volDown" class="svg-btn" transform="translate(380,22)" cursor="pointer">
         <circle cx="14" cy="14" r="14" fill="#fff" stroke="#a8a8a8" stroke-width="1.2" />
         <path d="M6 14h16" stroke="#111" stroke-width="1.4" stroke-linecap="round"/>
       </g>
 
-      <!-- vol up -->
       <g id="svgBtn_volUp" class="svg-btn" transform="translate(440,22)" cursor="pointer">
         <circle cx="14" cy="14" r="14" fill="#fff" stroke="#a8a8a8" stroke-width="1.2" />
         <path d="M14 6v16" stroke="#111" stroke-width="1.4" stroke-linecap="round"/>
@@ -161,7 +144,7 @@ async function initAudioSources(){
 initAudioSources();
 
 /* ============================
-   Cassette SVG (you provided) as template
+   Cassette SVG (from you)
    ============================ */
 const CASSETTE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="193" height="193" viewBox="0 0 193 193">
   <g id="Group_13" transform="translate(-974 -212)">
@@ -183,12 +166,10 @@ const CASSETTE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="193" height
 </svg>`;
 
 /* ============================
-   Create visible cassettes in tokensGrid
+   Create visible cassettes
    ============================ */
 const tokensGrid = document.getElementById('tokensGrid');
 let cassetteState = {}, playQueue = [], currentPlayingId = null;
-
-/* positions array for initial placement */
 const positions = [{left:10,top:10},{left:10,top:230},{left:10,top:450}];
 for (let i=0;i<3;i++) createCassette('c'+(i+1), i, positions[i]);
 
@@ -200,44 +181,32 @@ function createCassette(id, trackIndex, pos){
   wrapper.style.left = pos.left + 'px';
   wrapper.style.top = pos.top + 'px';
   wrapper.innerHTML = CASSETTE_SVG;
-  // remove background rects if present (guard)
   try { wrapper.querySelectorAll('rect').forEach(r=>r.remove()); } catch(e){}
   tokensGrid.appendChild(wrapper);
   cassetteState[id] = { trackIndex, el: wrapper, onPad:false, cached:false, playing:false, queued:false };
   makeDraggable(wrapper);
 }
 
-/* ===== drag/magnet logic (snap to pad) ===== */
-// robust pad lookup + screen rect (använd getBoundingClientRect för korrekta skärmkoordinater)
+/* ===== drag/magnet logic ===== */
 const playerSVG = document.getElementById('playerSVG');
-// försök hitta pad-rect via id först, annars via selector i dokument
-let padRectEl = document.getElementById('Rectangle_3-2') || document.getElementById('Rectangle_3-3') || document.querySelector('#playerSVG rect[rx="8"]');
 
-// Om padRectEl inte hittas direkt — försök igen efter kort delay (SVG kan ladda)
-if (!padRectEl) {
-  setTimeout(()=> {
-    padRectEl = document.getElementById('Rectangle_3-2') || document.getElementById('Rectangle_3-3') || document.querySelector('#playerSVG rect[rx="8"]');
-    if (!padRectEl) console.warn('Reader pad rect not found in SVG');
-  }, 60);
-}
-
+// ROBUST pad rect: use the inner circle of Ellipse_21 (pad_main_circle) if present
 function getPadRectScreen(){
-  // Om vi har ett element, använd dess boundingClientRect (mest robust)
-  const rectEl = padRectEl || document.querySelector('#playerSVG rect[rx="8"]') || document.querySelector('#playerSVG rect');
-  if (!rectEl) {
-    // fallback: använd hela SVG area ungefär
-    const svgRect = playerSVG.getBoundingClientRect();
-    return { left: svgRect.left + 40, top: svgRect.top + 40, width: svgRect.width - 80, height: svgRect.height - 220, centerX: svgRect.left + svgRect.width/2, centerY: svgRect.top + svgRect.height/2 };
+  // try inner circle first
+  let padCircle = playerSVG.querySelector('#pad_main_circle');
+  if (padCircle){
+    const r = padCircle.getBoundingClientRect();
+    return { left: r.left, top: r.top, width: r.width, height: r.height, centerX: r.left + r.width/2, centerY: r.top + r.height/2 };
   }
-  const r = rectEl.getBoundingClientRect();
-  return {
-    left: r.left,
-    top: r.top,
-    width: r.width,
-    height: r.height,
-    centerX: r.left + r.width/2,
-    centerY: r.top + r.height/2
-  };
+  // fallback to rects inside SVG
+  let rectEl = playerSVG.querySelector('#Rectangle_3-2') || playerSVG.querySelector('#Rectangle_3-3') || playerSVG.querySelector('rect[rx="8"]') || playerSVG.querySelector('rect');
+  if (rectEl){
+    const r2 = rectEl.getBoundingClientRect();
+    return { left: r2.left, top: r2.top, width: r2.width, height: r2.height, centerX: r2.left + r2.width/2, centerY: r2.top + r2.height/2 };
+  }
+  // last resort: whole SVG area minus top
+  const svgRect = playerSVG.getBoundingClientRect();
+  return { left: svgRect.left + 20, top: svgRect.top + 20, width: svgRect.width - 40, height: svgRect.height - 140, centerX: svgRect.left + svgRect.width/2, centerY: svgRect.top + svgRect.height/2 };
 }
 
 function makeDraggable(elem){
@@ -260,9 +229,9 @@ function makeDraggable(elem){
     const pad = getPadRectScreen();
     const dx = e.clientX - pad.centerX, dy = e.clientY - pad.centerY;
     const dist = Math.sqrt(dx*dx + dy*dy);
-    const magnetRadius = Math.max(pad.width, pad.height) * 0.85;
+    const magnetRadius = Math.max(pad.width, pad.height) * 0.9;
     if (dist < magnetRadius){
-      const pull = 0.12 + (1 - dist/magnetRadius)*0.25;
+      const pull = 0.12 + (1 - dist/magnetRadius)*0.32;
       nx = nx + (pad.centerX - e.clientX)*pull;
       ny = ny + (pad.centerY - e.clientY)*pull;
       elem.style.transform = 'scale(1.02)';
@@ -285,8 +254,6 @@ function makeDraggable(elem){
     const pad = getPadRectScreen();
     const inside = (centerX >= pad.left && centerX <= pad.left + pad.width && centerY >= pad.top && centerY <= pad.top + pad.height);
     if (inside){
-      // snap to pad center region
-      const container = tokensGrid.getBoundingClientRect();
       const snapX = pad.centerX - rect.width/2;
       const snapY = pad.centerY - rect.height/2;
       elem.style.left = (snapX - tokensGrid.getBoundingClientRect().left) + 'px';
@@ -294,7 +261,7 @@ function makeDraggable(elem){
       cassetteState[id].onPad = true;
       if (!cassetteState[id].cached){
         cassetteState[id].cached = true;
-        setTimeout(()=>handleDrop(id), 400 + Math.random()*400);
+        setTimeout(()=>handleDrop(id), 350 + Math.random()*350);
       } else handleDrop(id);
     } else {
       if (cassetteState[id].onPad) {
@@ -311,7 +278,7 @@ function makeDraggable(elem){
   window.addEventListener('pointerup', up);
 }
 
-/* =============== Playback + queue logic =============== */
+/* Playback + queue logic (unchanged) */
 function handleDrop(cid){
   const st = cassetteState[cid];
   if (!st) return;
@@ -319,13 +286,11 @@ function handleDrop(cid){
   if (!currentPlayingId) startCassette(cid);
   else if (!st.queued){ st.queued=true; playQueue.push(cid); updateAllUI(); }
 }
-
 function startCassette(cid){
   const st = cassetteState[cid];
   if (!st) return;
-  const idx = st.trackIndex;
-  const aud = audioEls[idx];
-  if (!aud || !aud.src) { console.warn('no audio for track', idx); return; }
+  const aud = audioEls[st.trackIndex];
+  if (!aud || !aud.src) { console.warn('no audio for track', st.trackIndex); return; }
   aud.volume = window._masterVolume || 0.9;
   aud.currentTime = 0;
   const p = aud.play();
@@ -334,7 +299,6 @@ function startCassette(cid){
   aud.onended = ()=>{ st.playing=false; currentPlayingId=null; startNextInQueue(); updateAllUI(); };
   updateAllUI();
 }
-
 function stopCassette(cid, dueToLift){
   const st = cassetteState[cid]; if (!st) return;
   const aud = audioEls[st.trackIndex]; if (aud && !aud.paused){ try{ aud.pause(); aud.currentTime=0; }catch(e){} }
@@ -342,7 +306,6 @@ function stopCassette(cid, dueToLift){
   if (st.queued){ st.queued=false; playQueue = playQueue.filter(x=>x!==cid); }
   updateAllUI();
 }
-
 function startNextInQueue(){
   if (currentPlayingId) return;
   if (playQueue.length===0) return;
@@ -350,18 +313,10 @@ function startNextInQueue(){
   if (next && cassetteState[next] && cassetteState[next].onPad) startCassette(next);
   updateAllUI();
 }
-
 function removeFromQueue(cid){ playQueue = playQueue.filter(x=>x!==cid); if (cassetteState[cid]) cassetteState[cid].queued=false; updateAllUI(); }
+function updateAllUI(){ Object.keys(cassetteState).forEach(k=>{ const s = cassetteState[k]; s.el.classList.toggle('playing', !!s.playing); s.el.classList.toggle('queued', !!s.queued); }); }
 
-function updateAllUI(){
-  Object.keys(cassetteState).forEach(k=>{
-    const s = cassetteState[k];
-    s.el.classList.toggle('playing', !!s.playing);
-    s.el.classList.toggle('queued', !!s.queued);
-  });
-}
-
-/* =============== Controls: embedded SVG buttons wiring =============== */
+/* Embedded SVG button wiring (unchanged) */
 const svgRoot = document.getElementById('playerSVG');
 const svgBtn_power = svgRoot.getElementById('svgBtn_power');
 const svgBtn_shuffle = svgRoot.getElementById('svgBtn_shuffle');
@@ -373,79 +328,33 @@ window._masterVolume = 0.9;
 window._powerOn = false;
 window._shuffleOn = false;
 
-async function unlockAudioOnce(){
-  if (window._audioUnlocked) return;
-  window._audioUnlocked = true;
-  for (let a of audioEls) if (a && a.src) {
-    try { await a.play().then(()=>{ a.pause(); a.currentTime=0; }).catch(()=>{}); } catch(e){}
-  }
-}
+async function unlockAudioOnce(){ if (window._audioUnlocked) return; window._audioUnlocked = true; for (let a of audioEls) if (a && a.src) { try { await a.play().then(()=>{ a.pause(); a.currentTime=0; }).catch(()=>{}); } catch(e){} } }
 
-function animateSvgBtn(g){
-  if (!g) return;
-  try {
-    g.style.transition = 'transform 110ms ease';
-    g.style.transform = 'scale(0.92)';
-    setTimeout(()=> g.style.transform = '', 150);
-  } catch(e){}
-}
+function animateSvgBtn(g){ if (!g) return; try { g.style.transition = 'transform 110ms ease'; g.style.transform = 'scale(0.92)'; setTimeout(()=> g.style.transform = '', 150); } catch(e){} }
 
 if (svgBtn_power){
   svgBtn_power.addEventListener('click', async (e)=>{
-    e.stopPropagation();
-    animateSvgBtn(svgBtn_power);
-    await unlockAudioOnce();
+    e.stopPropagation(); animateSvgBtn(svgBtn_power); await unlockAudioOnce();
     window._powerOn = !window._powerOn;
     svgBtn_power.setAttribute('data-pressed', String(window._powerOn));
     svg_power_light.setAttribute('fill', window._powerOn ? '#6ee37b' : '#dff6df');
     if (!window._powerOn){
-      // stop audio & reset positions
       Object.keys(cassetteState).forEach(k=>{ stopCassette(k,false); cassetteState[k].queued=false; cassetteState[k].onPad=false; });
       playQueue=[]; currentPlayingId=null;
-      Object.keys(cassetteState).forEach((k,i)=> {
-        const el = cassetteState[k].el; el.style.left = positions[i].left + 'px'; el.style.top = positions[i].top + 'px';
-      });
+      Object.keys(cassetteState).forEach((k,i)=> { const el = cassetteState[k].el; el.style.left = positions[i].left + 'px'; el.style.top = positions[i].top + 'px'; });
       updateAllUI();
-    } else {
-      startNextInQueue();
-    }
+    } else startNextInQueue();
   });
 }
-
 if (svgBtn_shuffle){
-  svgBtn_shuffle.addEventListener('click', (e)=>{
-    e.stopPropagation();
-    animateSvgBtn(svgBtn_shuffle);
-    window._shuffleOn = !window._shuffleOn;
-    svgBtn_shuffle.setAttribute('data-pressed', String(window._shuffleOn));
-    // subtle visual feedback: change stroke color slightly
-    const circle = svgBtn_shuffle.querySelector('circle');
-    if (circle) circle.setAttribute('stroke', window._shuffleOn ? '#111' : '#a8a8a8');
-  });
+  svgBtn_shuffle.addEventListener('click', (e)=>{ e.stopPropagation(); animateSvgBtn(svgBtn_shuffle); window._shuffleOn = !window._shuffleOn; svgBtn_shuffle.setAttribute('data-pressed', String(window._shuffleOn)); const circle = svgBtn_shuffle.querySelector('circle'); if (circle) circle.setAttribute('stroke', window._shuffleOn ? '#111' : '#a8a8a8'); });
 }
+if (svgBtn_volDown){ svgBtn_volDown.addEventListener('click', (e)=>{ e.stopPropagation(); animateSvgBtn(svgBtn_volDown); window._masterVolume = Math.max(0, window._masterVolume - 0.06); audioEls.forEach(a=>{ if (a) a.volume = window._masterVolume; }); }); }
+if (svgBtn_volUp){ svgBtn_volUp.addEventListener('click', (e)=>{ e.stopPropagation(); animateSvgBtn(svgBtn_volUp); window._masterVolume = Math.min(1, window._masterVolume + 0.06); audioEls.forEach(a=>{ if (a) a.volume = window._masterVolume; }); }); }
 
-if (svgBtn_volDown){
-  svgBtn_volDown.addEventListener('click', (e)=>{
-    e.stopPropagation();
-    animateSvgBtn(svgBtn_volDown);
-    window._masterVolume = Math.max(0, window._masterVolume - 0.06);
-    audioEls.forEach(a=>{ if (a) a.volume = window._masterVolume; });
-  });
-}
-
-if (svgBtn_volUp){
-  svgBtn_volUp.addEventListener('click', (e)=>{
-    e.stopPropagation();
-    animateSvgBtn(svgBtn_volUp);
-    window._masterVolume = Math.min(1, window._masterVolume + 0.06);
-    audioEls.forEach(a=>{ if (a) a.volume = window._masterVolume; });
-  });
-}
-
-/* initial UI state */
 svg_power_light.setAttribute('fill', '#dff6df');
 updateAllUI();
-console.log('Ready — embedded SVG buttons wired, cassettes visible & draggable.');
+console.log('Updated: pad detection using inner circle -> more robust snap logic.');
 </script>
 </body>
 </html>
