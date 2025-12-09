@@ -131,7 +131,7 @@ const AUDIO_FILES = [
   // null om du inte har en 4:e ännu
 ];
 
-const audioEls = [];
+const audioEls = [null, null, null];
 
 async function initAudioSources(){
   for (let i = 0; i < AUDIO_FILES.length; i++){
