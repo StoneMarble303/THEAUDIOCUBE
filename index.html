@@ -499,7 +499,38 @@ document.getElementById('resetPositions').addEventListener('click', ()=>{
 /* ========== initial ui refresh ========== */
 Object.keys(cassetteState).forEach(k=>updateCassetteUI(k));
 updateQueueView();
+// ===== AUDIO UNLOCK (lägg till i din script-del) =====
+let audioUnlocked = false;
+const powerBtn = document.getElementById('powerBtn');
 
+async function unlockAudioOnce(){
+  if (audioUnlocked) return;
+  audioUnlocked = true;
+  // try to play and immediately pause each audio to satisfy browser gesture requirement
+  for (let a of audioEls) {
+    try {
+      // some sources may be empty; skip those
+      if (!a.src) continue;
+      // play then pause quickly
+      await a.play().then(()=> {
+        a.pause();
+        a.currentTime = 0;
+      }).catch(err => {
+        console.warn('Unlock play failed (ignored):', err);
+      });
+    } catch(e){
+      console.warn('Unlock error', e);
+    }
+  }
+  console.log('Audio unlocked by user gesture');
+  // optional visual feedback
+  powerBtn.style.transform = 'scale(0.98)';
+  setTimeout(()=> powerBtn.style.transform = '', 120);
+}
+
+powerBtn.addEventListener('click', async (e) => {
+  await unlockAudioOnce();
+});
 console.log('CUBE player ready.');
 </script>
 </body>
